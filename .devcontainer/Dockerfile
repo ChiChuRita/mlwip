@@ -5,4 +5,8 @@ RUN apt-get update && apt-get install -y \
     cmake \
     check \
     git \
+    gdb \
+    valgrind \
+    clangd \
+    clang \
     && rm -rf /var/lib/apt/lists/*

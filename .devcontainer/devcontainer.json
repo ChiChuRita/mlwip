@@ -8,7 +8,10 @@
   "postCreateCommand": "mkdir -p build && cd build && cmake .. && make",
   "customizations": {
     "vscode": {
-      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"]
+      "extensions": [
+        "anysphere.cpptools",
+        "ms-vscode.cpptools"
+      ]
     }
   }
 }
