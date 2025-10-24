@@ -12,6 +12,10 @@ if(NOT ${CMAKE_VERSION} VERSION_LESS "3.10.0")
     include_guard(GLOBAL)
 endif()
 
+# Toggle: use Rust TCP backend (wrapper) vs legacy C TCP implementation
+# Users can override via: -DLWIP_USE_RUST_TCP=ON/OFF
+option(LWIP_USE_RUST_TCP "Use Rust TCP backend (wrapper) instead of legacy C" ON)
+
 set(LWIP_VERSION_MAJOR    "2")
 set(LWIP_VERSION_MINOR    "2")
 set(LWIP_VERSION_REVISION "2")
@@ -51,12 +55,31 @@ set(lwipcore_SRCS
     ${LWIP_DIR}/src/core/altcp.c
     ${LWIP_DIR}/src/core/altcp_alloc.c
     ${LWIP_DIR}/src/core/altcp_tcp.c
-    ${LWIP_DIR}/src/core/tcp.c
-    ${LWIP_DIR}/src/core/tcp_in.c
-    ${LWIP_DIR}/src/core/tcp_out.c
     ${LWIP_DIR}/src/core/timeouts.c
     ${LWIP_DIR}/src/core/udp.c
 )
+
+# Fallback include directories if the parent project did not define them
+if (NOT DEFINED LWIP_INCLUDE_DIRS)
+    set(LWIP_INCLUDE_DIRS
+        ${LWIP_DIR}/src/include
+        ${LWIP_DIR}/contrib/ports/unix/port/include
+        ${LWIP_DIR}/contrib/ports/unix/lib
+    )
+endif()
+
+# Select TCP backend sources
+if (LWIP_USE_RUST_TCP)
+    list(APPEND lwipcore_SRCS
+        ${LWIP_DIR}/src/core/tcp_rust/wrapper.c
+    )
+else()
+    list(APPEND lwipcore_SRCS
+        ${LWIP_DIR}/src/core/tcp.c
+        ${LWIP_DIR}/src/core/tcp_in.c
+        ${LWIP_DIR}/src/core/tcp_out.c
+    )
+endif()
 set(lwipcore4_SRCS
     ${LWIP_DIR}/src/core/ipv4/acd.c
     ${LWIP_DIR}/src/core/ipv4/autoip.c
@@ -276,11 +299,39 @@ else (DOXYGEN_FOUND)
     message(STATUS "Doxygen needs to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)
 
+if (LWIP_USE_RUST_TCP)
+    # Build Rust TCP library
+    set(RUST_TCP_DIR ${LWIP_DIR}/src/core/tcp_rust)
+    set(RUST_TCP_LIB ${RUST_TCP_DIR}/target/release/liblwip_tcp_rust.a)
+
+    add_custom_command(
+        OUTPUT ${RUST_TCP_LIB}
+        COMMAND cargo build --release
+        WORKING_DIRECTORY ${RUST_TCP_DIR}
+        COMMENT "Building Rust TCP library"
+        VERBATIM
+    )
+
+    add_custom_target(tcp_rust_lib
+        DEPENDS ${RUST_TCP_LIB}
+    )
+endif()
+
 # lwIP libraries
 add_library(lwipcore EXCLUDE_FROM_ALL ${lwipnoapps_SRCS})
+if (LWIP_USE_RUST_TCP)
+    add_dependencies(lwipcore tcp_rust_lib)
+endif()
 target_compile_options(lwipcore PRIVATE ${LWIP_COMPILER_FLAGS})
 target_compile_definitions(lwipcore PRIVATE ${LWIP_DEFINITIONS}  ${LWIP_MBEDTLS_DEFINITIONS})
 target_include_directories(lwipcore PRIVATE ${LWIP_INCLUDE_DIRS} ${LWIP_MBEDTLS_INCLUDE_DIRS})
+if (LWIP_USE_RUST_TCP)
+    # Define for C code and link Rust static lib
+    target_compile_definitions(lwipcore PRIVATE LWIP_USE_RUST_TCP=1)
+    target_link_libraries(lwipcore ${RUST_TCP_LIB})
+else()
+    target_compile_definitions(lwipcore PRIVATE LWIP_USE_RUST_TCP=0)
+endif()
 
 add_library(lwipallapps EXCLUDE_FROM_ALL ${lwipallapps_SRCS})
 target_compile_options(lwipallapps PRIVATE ${LWIP_COMPILER_FLAGS})

@@ -10,7 +10,8 @@
     "vscode": {
       "extensions": [
         "anysphere.cpptools",
-        "ms-vscode.cpptools"
+        "ms-vscode.cpptools",
+        "rust-lang.rust-analyzer"
       ]
     }
   }
