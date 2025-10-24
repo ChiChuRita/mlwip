@@ -33,6 +33,7 @@ fn main() {
         .allowlist_type("ip4_addr_t")
         .allowlist_type("ip6_addr")
         .allowlist_type("ip6_addr_t")
+        .allowlist_type("tcp_hdr")
         .allowlist_function("pbuf_alloc")
         .allowlist_function("pbuf_free")
         .allowlist_function("pbuf_header")
@@ -46,6 +47,7 @@ fn main() {
         .allowlist_function("ip_chksum_pseudo")
         .allowlist_var("PBUF_.*")
         .allowlist_var("IP_PROTO_TCP")
+        .allowlist_var("TCP_.*")  // Add TCP flag constants
         // Generate with useful derivations
         .derive_debug(true)
         .derive_default(true)

@@ -49,6 +49,28 @@
                 "cwd": "${workspaceFolder}/build"
             },
             "command": "cmake --build . --target lwipdocs"
+        },
+        {
+            "label": "cargo build tests",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["test", "--no-run"],
+            "options": {
+                "cwd": "${workspaceFolder}/src/core/tcp_rust"
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "cargo test",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["test"],
+            "options": {
+                "cwd": "${workspaceFolder}/src/core/tcp_rust"
+            },
+            "problemMatcher": [],
+            "group": "test"
         }
     ]
 }

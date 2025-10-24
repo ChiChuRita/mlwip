@@ -4,13 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["staticlib"]  # Build as static library for C
+crate-type = ["staticlib", "rlib"]  # Build as static library for C and rlib for Rust tests
 
 [dependencies]
 # No external dependencies - keeping it minimal
 
 [build-dependencies]
 bindgen = "0.69"  # Generate Rust bindings from C headers
+
+[profile.dev]
+panic = "abort"           # No unwinding in dev builds either
 
 [profile.release]
 opt-level = "z"           # Optimize for size

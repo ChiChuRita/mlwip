@@ -67,3 +67,5 @@
 /contrib/apps/LwipMibCompiler/SharpSnmpLib/obj
 
 .cache
+
+/src/core/tcp_rust/target/

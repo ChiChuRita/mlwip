@@ -5,58 +5,64 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch example_app",
-            "type": "cppdbg",
+            "name": "(lldb) Debug Rust Test - specific test",
+            "type": "lldb",
             "request": "launch",
-            "args": [],
-            "stopAtEntry": true,
-            "environment": [],
-            "externalConsole": true,
-            "MIMode": "gdb",
-            "preLaunchTask": "Build example_app",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ],
+                "filter": {
+                    "name": "handshake_tests",
+                    "kind": "test"
                 }
-            ],
-            "linux": {
-                "cwd": "${workspaceFolder}/build/contrib/ports/unix/example_app",
-                "program": "${workspaceFolder}/build/contrib/ports/unix/example_app/example_app",
             },
-            "windows": {
-                "cwd": "${workspaceFolder}/build/contrib/ports/win32/example_app",
-                "program": "${workspaceFolder}/build/contrib/ports/win32/example_app/example_app",
-                "miDebuggerPath": "gdb.exe",
-            }
+            "args": ["${input:testName}", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
         },
         {
-            "name": "(gdb) Launch unit tests",
-            "type": "cppdbg",
+            "name": "(lldb) Debug Rust - three_way_handshake_passive",
+            "type": "lldb",
             "request": "launch",
-            "args": [],
-            "stopAtEntry": true,
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "preLaunchTask": "Build unit tests",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "linux": {
-                "cwd": "${workspaceFolder}/contrib/ports/unix/check/build",
-                "program": "${workspaceFolder}/contrib/ports/unix/check/build/lwip_unittests",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "handshake_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
             },
-            "windows": {
-                "cwd": "${workspaceFolder}/contrib/ports/win32/check/build",
-                "program": "${workspaceFolder}/contrib/ports/win32/check/build/lwip_unittests",
-                "miDebuggerPath": "gdb.exe",
-            }
+            "args": ["test_three_way_handshake_passive", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "(lldb) Debug All Rust Tests",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "type": "promptString",
+            "description": "Enter the test name to debug",
+            "default": "test_three_way_handshake_passive"
         }
     ]
 }
