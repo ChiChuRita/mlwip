@@ -5,6 +5,7 @@
 
 use crate::state::{TcpConnectionState, TcpState};
 use crate::ffi;
+use crate::tcp_proto;
 
 /// TCP TX Path
 ///
@@ -25,7 +26,7 @@ impl TcpTx {
         }
 
         // Prepare segment with SYN flag
-        let flags = ffi::TCP_SYN as u8;
+        let flags = tcp_proto::TCP_SYN;
 
         Self::send_segment(
             state,
@@ -54,7 +55,7 @@ impl TcpTx {
         }
 
         // Prepare segment with SYN+ACK flags
-        let flags = (ffi::TCP_SYN | ffi::TCP_ACK) as u8;
+        let flags = tcp_proto::TCP_SYN | tcp_proto::TCP_ACK;
 
         Self::send_segment(
             state,
@@ -77,7 +78,7 @@ impl TcpTx {
         netif: *mut ffi::netif,
     ) -> Result<(), &'static str> {
         // Prepare segment with ACK flag
-        let flags = ffi::TCP_ACK as u8;
+        let flags = tcp_proto::TCP_ACK;
 
         Self::send_segment(
             state,
@@ -117,7 +118,7 @@ impl TcpTx {
         }
 
         // Get pointer to TCP header
-        let tcphdr = (*p).payload as *mut ffi::tcp_hdr;
+        let tcphdr = (*p).payload as *mut tcp_proto::TcpHdr;
         if tcphdr.is_null() {
             ffi::pbuf_free(p);
             return Err("Null TCP header payload");
@@ -160,7 +161,7 @@ impl TcpTx {
 
     /// Calculate TCP checksum
     unsafe fn calculate_checksum(
-        tcphdr: *mut ffi::tcp_hdr,
+        tcphdr: *mut tcp_proto::TcpHdr,
         src_ip: &ffi::ip_addr_t,
         dest_ip: &ffi::ip_addr_t,
         len: u16,

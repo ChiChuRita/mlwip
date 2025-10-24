@@ -6,6 +6,7 @@
 use crate::state::TcpConnectionState;
 use crate::control_path::{ControlPath, TcpSegment, TcpFlags};
 use crate::ffi;
+use crate::tcp_proto;
 
 /// TCP RX Path
 ///
@@ -72,7 +73,7 @@ impl TcpRx {
         }
 
         // Cast payload to TCP header
-        let tcphdr = pbuf.payload as *const ffi::tcp_hdr;
+        let tcphdr = pbuf.payload as *const tcp_proto::TcpHdr;
         if tcphdr.is_null() {
             return Err("Null TCP header");
         }
@@ -80,17 +81,16 @@ impl TcpRx {
         let hdr = &*tcphdr;
 
         // Extract fields (convert from network byte order)
-        let seqno = u32::from_be(hdr.seqno);
-        let ackno = u32::from_be(hdr.ackno);
-        let wnd = u16::from_be(hdr.wnd);
+        let seqno = hdr.sequence_number();
+        let ackno = hdr.ack_number();
+        let wnd = hdr.window();
 
         // Extract flags from the combined field
-        let flags_byte = (u16::from_be(hdr._hdrlen_rsvd_flags) & 0x3F) as u8;
+        let flags_byte = hdr.flags();
         let flags = TcpFlags::from_tcphdr(flags_byte);
 
         // Calculate header length (in bytes)
-        let hdrlen_raw = u16::from_be(hdr._hdrlen_rsvd_flags) >> 12;
-        let tcphdr_len = (hdrlen_raw as u16) * 4;
+        let tcphdr_len = hdr.hdrlen_bytes() as u16;
 
         // Calculate payload length
         let payload_len = if pbuf.tot_len > tcphdr_len {

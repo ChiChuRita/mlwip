@@ -5,6 +5,7 @@
 
 use crate::state::{TcpConnectionState, TcpState};
 use crate::ffi;
+use crate::tcp_proto;
 
 /// TCP Flags from the header
 pub struct TcpFlags {
@@ -19,12 +20,12 @@ pub struct TcpFlags {
 impl TcpFlags {
     pub fn from_tcphdr(flags: u8) -> Self {
         Self {
-            fin: (flags) != 0,
-            syn: (flags ) != 0,
-            rst: (flags ) != 0,
-            psh: (flags ) != 0,
-            ack: (flags ) != 0,
-            urg: (flags ) != 0,
+            fin: (flags & tcp_proto::TCP_FIN) != 0,
+            syn: (flags & tcp_proto::TCP_SYN) != 0,
+            rst: (flags & tcp_proto::TCP_RST) != 0,
+            psh: (flags & tcp_proto::TCP_PSH) != 0,
+            ack: (flags & tcp_proto::TCP_ACK) != 0,
+            urg: (flags & tcp_proto::TCP_URG) != 0,
         }
     }
 }
