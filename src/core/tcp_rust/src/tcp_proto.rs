@@ -1,7 +1,6 @@
 //! TCP Protocol Definitions
 //!
 //! Pure Rust implementation of TCP protocol structures and constants.
-//! This exactly matches the C implementation in lwip/prot/tcp.h
 
 /// TCP header length (excluding options)
 pub const TCP_HLEN: usize = 20;
@@ -22,10 +21,7 @@ pub const TCP_MAX_OPTION_BYTES: usize = 40;
 
 /// TCP Header Structure
 ///
-/// This exactly matches the C `struct tcp_hdr` from lwip/prot/tcp.h.
 /// Fields are in network byte order (big-endian).
-///
-/// #[repr(C, packed)] ensures the layout matches the C struct exactly.
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct TcpHdr {
