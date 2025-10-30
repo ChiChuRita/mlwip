@@ -9,3 +9,4 @@
 #include "lwip/ip6.h"
 #include "lwip/mem.h"
 #include "lwip/inet_chksum.h"
+#include "lwip/timeouts.h"

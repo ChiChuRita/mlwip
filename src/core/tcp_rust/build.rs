@@ -44,8 +44,11 @@ fn main() {
         .allowlist_function("ip4_output_if")
         .allowlist_function("ip6_output_if")
         .allowlist_function("ip_chksum_pseudo")
+        .allowlist_function("sys_timeout")
+        .allowlist_function("sys_untimeout")
         .allowlist_var("PBUF_.*")
         .allowlist_var("IP_PROTO_TCP")
+        .allowlist_var("IPADDR_TYPE_.*")
         // Generate with useful derivations
         .derive_debug(true)
         .derive_default(true)

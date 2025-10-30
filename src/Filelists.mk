@@ -29,6 +29,10 @@
 # Author: Adam Dunkels <adam@sics.se>
 #
 
+# Toggle: use Rust TCP backend (wrapper) vs legacy C TCP implementation
+# Users can override via: make LWIP_USE_RUST_TCP=1 or LWIP_USE_RUST_TCP=0
+LWIP_USE_RUST_TCP ?= 1
+
 # COREFILES, CORE4FILES: The minimum set of files needed for lwIP.
 COREFILES=$(LWIPDIR)/core/init.c \
 	$(LWIPDIR)/core/def.c \
@@ -45,11 +49,21 @@ COREFILES=$(LWIPDIR)/core/init.c \
 	$(LWIPDIR)/core/altcp.c \
 	$(LWIPDIR)/core/altcp_alloc.c \
 	$(LWIPDIR)/core/altcp_tcp.c \
-	$(LWIPDIR)/core/tcp.c \
-	$(LWIPDIR)/core/tcp_in.c \
-	$(LWIPDIR)/core/tcp_out.c \
 	$(LWIPDIR)/core/timeouts.c \
 	$(LWIPDIR)/core/udp.c
+
+# Select TCP backend sources based on LWIP_USE_RUST_TCP flag
+ifeq ($(LWIP_USE_RUST_TCP),1)
+  COREFILES += $(LWIPDIR)/core/tcp_rust/wrapper.c
+  CFLAGS += -DLWIP_USE_RUST_TCP=1
+  # Note: Rust library must be built separately with 'cargo build --release' in tcp_rust/
+  # Add Rust library to linker flags: LDFLAGS += -L$(LWIPDIR)/core/tcp_rust/target/release -llwip_tcp_rust
+else
+  COREFILES += $(LWIPDIR)/core/tcp.c \
+	$(LWIPDIR)/core/tcp_in.c \
+	$(LWIPDIR)/core/tcp_out.c
+  CFLAGS += -DLWIP_USE_RUST_TCP=0
+endif
 
 CORE4FILES=$(LWIPDIR)/core/ipv4/acd.c \
 	$(LWIPDIR)/core/ipv4/autoip.c \

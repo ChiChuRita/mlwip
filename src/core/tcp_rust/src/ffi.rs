@@ -78,3 +78,11 @@ impl ErrT {
         !self.is_ok()
     }
 }
+
+/// TCP timer interval in milliseconds (250ms)
+pub const TCP_TMR_INTERVAL: u32 = 250;
+
+/// IP address type constants (may also come from bindgen)
+pub const IPADDR_TYPE_V4: u8 = 0;
+pub const IPADDR_TYPE_V6: u8 = 6;
+pub const IPADDR_TYPE_ANY: u8 = 46;

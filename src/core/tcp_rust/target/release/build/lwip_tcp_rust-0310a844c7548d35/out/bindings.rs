@@ -449,3 +449,12 @@ extern "C" {
         dest: *const ip_addr_t,
     ) -> u16_t;
 }
+#[doc = " Function prototype for a timeout callback function. Register such a function\n using sys_timeout().\n\n @param arg Additional argument to pass to the function - set up by sys_timeout()"]
+pub type sys_timeout_handler =
+    ::core::option::Option<unsafe extern "C" fn(arg: *mut ::core::ffi::c_void)>;
+extern "C" {
+    pub fn sys_timeout(msecs: u32_t, handler: sys_timeout_handler, arg: *mut ::core::ffi::c_void);
+}
+extern "C" {
+    pub fn sys_untimeout(handler: sys_timeout_handler, arg: *mut ::core::ffi::c_void);
+}

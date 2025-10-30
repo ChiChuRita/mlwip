@@ -11,6 +11,7 @@ Successfully integrated Rust into lwIP's TCP layer using FFI (Foreign Function I
 ## lwIP Philosophy and Rust Compatibility
 
 ### Core philosophies (preserve)
+
 - **Deterministic memory**: Prefer fixed pools and bounded allocation patterns; predictable RAM/latency over convenience.
 - **Small footprint**: Minimize code size and features; compile-time options via `lwipopts.h` control costs.
 - **Single-threaded core**: Core runs in `tcpip_thread` or with lightweight protection; message-passing into the core, not shared-state concurrency.
@@ -21,6 +22,7 @@ Successfully integrated Rust into lwIP's TCP layer using FFI (Foreign Function I
 - **Strict layering + stable C ABI**: Preserve existing API timing/semantics across layers.
 
 ### Rust do-not rules (to match lwIP)
+
 - **Do not use `std` in the core**: Stay `no_std`; set `panic=abort`; avoid `unwrap/expect` in datapaths.
 - **Do not allocate in hot paths**: No `Vec/String/Box` in datapath, timers, callbacks, or ISRs. If allocation is unavoidable, do it at init; prefer `heapless` fixed-capacity types.
 - **Do not rely on lwIP pools as a general allocator**: `memp` pools are not `GlobalAlloc`. Only use `mem_malloc` if it fully meets alignment/`realloc` semantics; otherwise avoid dynamic allocation.
@@ -32,6 +34,7 @@ Successfully integrated Rust into lwIP's TCP layer using FFI (Foreign Function I
 - **Do not enable unwinding/TLS-heavy features**: Avoid features that bloat code or assume OS facilities not present on targets.
 
 ### Minimal "do" guidance
+
 - **Use FFI hygiene**: `#[repr(C)]`, `extern "C"`, `#[no_mangle]`; mirror C layouts exactly.
 - **Contain `unsafe`**: Keep it in small modules; expose narrow safe APIs that enforce lwIP constraints.
 - **Validate context**: Where possible, assert/guard that entrypoints run on the correct thread/context.
@@ -46,26 +49,23 @@ Successfully integrated Rust into lwIP's TCP layer using FFI (Foreign Function I
 src/core/tcp_rust/
 ├── Cargo.toml                    # Rust project config with size optimization
 ├── build.rs                      # Bindgen integration for C headers
+├── wrapper.c                     # C wrapper that calls Rust functions
 ├── wrapper.h                     # C headers to generate bindings from
-├── README.md                     # Comprehensive documentation
 └── src/
     ├── lib.rs                    # Main Rust library with FFI exports
     └── ffi.rs                    # FFI types and C function declarations
 ```
 
-### New C Wrapper
-
-```
-src/core/tcp_rust_wrapper.c       # C wrapper that calls Rust functions
-```
-
 ### Modified Files
 
 ```
-src/Filelists.cmake                # Replaced tcp.c/tcp_in.c/tcp_out.c with wrapper
+src/Filelists.cmake                # Added LWIP_USE_RUST_TCP option
+                                   # Conditionally includes wrapper.c or tcp*.c
                                    # Added Rust library build and linking
+src/Filelists.mk                   # Added LWIP_USE_RUST_TCP flag for Makefile builds
 .devcontainer/Dockerfile           # Added Rust toolchain
 .devcontainer/devcontainer.json    # Added rust-analyzer extension
+BUILDING                           # Added note about LWIP_USE_RUST_TCP option
 ```
 
 ## How It Works
@@ -104,6 +104,7 @@ C: pbuf_free()                       [C function]
 ### Minimal FFI Interface
 
 **C → Rust (entry points):**
+
 - `tcp_input()` - Packet reception
 - `tcp_new()` - Create PCB
 - `tcp_bind()`, `tcp_connect()` - Connection setup
@@ -111,6 +112,7 @@ C: pbuf_free()                       [C function]
 - `tcp_close()`, `tcp_abort()` - Connection teardown
 
 **Rust → C (dependencies):**
+
 - `pbuf_alloc()`, `pbuf_free()` - Packet buffer management
 - `ip_output_if()` - Send packets to IP layer
 - `mem_malloc()`, `mem_free()` - Memory allocation
@@ -118,13 +120,48 @@ C: pbuf_free()                       [C function]
 
 ## Build Integration
 
-### CMake Flow
+### Switching Between Implementations
 
-1. **Configure:** `cmake ..`
+lwIP supports two TCP implementations via compile-time flag:
+
+#### **Option 1: Rust TCP (Default)**
+
+```bash
+# CMake
+cmake -DLWIP_USE_RUST_TCP=ON ..
+cmake --build .
+
+# Makefile
+make LWIP_USE_RUST_TCP=1
+```
+
+Files compiled: `src/core/tcp_rust/wrapper.c` + Rust library
+
+#### **Option 2: Legacy C TCP**
+
+```bash
+# CMake
+cmake -DLWIP_USE_RUST_TCP=OFF ..
+cmake --build .
+
+# Makefile
+make LWIP_USE_RUST_TCP=0
+```
+
+Files compiled: `src/core/tcp.c`, `src/core/tcp_in.c`, `src/core/tcp_out.c`
+
+**Note:** Both implementations provide identical APIs, so application code doesn't need changes.
+
+### CMake Flow (Rust TCP)
+
+1. **Configure:** `cmake -DLWIP_USE_RUST_TCP=ON ..`
+
    - Reads `src/Filelists.cmake`
    - Sets up Rust build as custom command
+   - Sets `LWIP_USE_RUST_TCP=1` define
 
 2. **Build:** `make lwipcore`
+
    ```
    Step 1: cargo build --release
        ↓
@@ -136,6 +173,35 @@ C: pbuf_free()                       [C function]
    ```
 
 3. **Result:** Single static library with Rust TCP integrated
+
+### Makefile Integration
+
+The Makefile build system (`src/Filelists.mk`) supports the same flag:
+
+```makefile
+# Default is Rust (can be overridden)
+LWIP_USE_RUST_TCP ?= 1
+
+# Conditionally includes either wrapper.c or tcp*.c
+ifeq ($(LWIP_USE_RUST_TCP),1)
+  COREFILES += $(LWIPDIR)/core/tcp_rust/wrapper.c
+  CFLAGS += -DLWIP_USE_RUST_TCP=1
+  # Note: Must build Rust library separately and add to LDFLAGS
+else
+  COREFILES += $(LWIPDIR)/core/tcp.c \
+               $(LWIPDIR)/core/tcp_in.c \
+               $(LWIPDIR)/core/tcp_out.c
+  CFLAGS += -DLWIP_USE_RUST_TCP=0
+endif
+```
+
+**For Makefile users:** Build Rust library manually first:
+
+```bash
+cd src/core/tcp_rust && cargo build --release && cd ../../..
+make LWIP_USE_RUST_TCP=1 \
+  LDFLAGS+="-L$(pwd)/src/core/tcp_rust/target/release -llwip_tcp_rust"
+```
 
 ### Size Analysis
 
@@ -210,30 +276,6 @@ cd test_build && ctest
 
 ## Current Implementation Status
 
-### ✅ Completed
-
-- [x] Rust project structure
-- [x] FFI layer with bindgen
-- [x] C wrapper functions
-- [x] CMake integration
-- [x] Build system working end-to-end
-- [x] All TCP API entry points defined
-- [x] Documentation and README
-
-### 🔄 TODO (Next Steps)
-
-- [ ] Implement actual TCP state machine
-- [ ] Port packet processing logic from tcp_in.c
-- [ ] Port packet output logic from tcp_out.c
-- [ ] Implement modular components:
-  - [ ] Connection management
-  - [ ] Reliability (retransmission, ACK)
-  - [ ] Flow control (window management)
-  - [ ] Congestion control (cwnd, ssthresh)
-- [ ] Add comprehensive unit tests
-- [ ] Run lwIP TCP test suite
-- [ ] Performance benchmarking
-
 ## Example: Adding New Functionality
 
 ### 1. Add Rust Function (lib.rs)
@@ -279,68 +321,30 @@ make clean && make lwipcore
 - **Monomorphization** - Generic code specialized at compile time
 - **Native code** - No runtime or garbage collection
 
-## Safety vs Performance Trade-offs
-
-| Feature | Cost | Benefit |
-|---------|------|---------|
-| Bounds checking | 1-2 instructions per access | Prevents buffer overflows |
-| Null checks | 1 comparison | Prevents null dereferences |
-| Ownership tracking | Compile-time only | Prevents use-after-free |
-| `unsafe` blocks | Zero (opt-out when needed) | Flexibility for FFI |
-
-**In practice:** Safety checks are often optimized away by LLVM.
-
 ## Resources
-
-### Documentation
-
-- [Rust TCP README](src/core/tcp_rust/README.md) - Detailed implementation guide
-- [Rust FFI Guide](https://doc.rust-lang.org/nomicon/ffi.html) - Official FFI documentation
-- [bindgen](https://rust-lang.github.io/rust-bindgen/) - C bindings generator
-- [lwIP Documentation](https://www.nongnu.org/lwip/) - Original TCP/IP stack
 
 ### Project Structure
 
 ```
 mlwip/
-├── src/core/
-│   ├── tcp_rust/                  ← New: Rust TCP implementation (self-contained)
-│   │   ├── wrapper.c              ← C→Rust bridge
-│   │   ├── wrapper.h              ← C headers for bindgen
-│   │   ├── Cargo.toml             ← Rust project config
-│   │   ├── build.rs               ← Bindgen integration
-│   │   ├── README.md              ← Implementation guide
-│   │   └── src/
-│   │       ├── lib.rs             ← Main Rust code
-│   │       └── ffi.rs             ← FFI types
-│   ├── tcp.c                      ← Original C implementation (still in place)
-│   ├── tcp_in.c                   ← Original C implementation (still in place)
-│   └── tcp_out.c                  ← Original C implementation (still in place)
+├── src/
+│   ├── core/
+│   │   ├── tcp_rust/              ← New: Rust TCP implementation (self-contained)
+│   │   │   ├── wrapper.c          ← C→Rust bridge (compiled when LWIP_USE_RUST_TCP=1)
+│   │   │   ├── wrapper.h          ← C headers for bindgen
+│   │   │   ├── Cargo.toml         ← Rust project config
+│   │   │   ├── build.rs           ← Bindgen integration
+│   │   │   └── src/
+│   │   │       ├── lib.rs         ← Main Rust code
+│   │   │       └── ffi.rs         ← FFI types
+│   │   ├── tcp.c                  ← Original C impl (compiled when LWIP_USE_RUST_TCP=0)
+│   │   ├── tcp_in.c               ← Original C impl (compiled when LWIP_USE_RUST_TCP=0)
+│   │   └── tcp_out.c              ← Original C impl (compiled when LWIP_USE_RUST_TCP=0)
+│   ├── Filelists.cmake            ← Modified: Added LWIP_USE_RUST_TCP option
+│   └── Filelists.mk               ← Modified: Added LWIP_USE_RUST_TCP flag
 ├── .devcontainer/
 │   ├── Dockerfile                 ← Modified: Added Rust
 │   └── devcontainer.json          ← Modified: Added rust-analyzer
+├── BUILDING                       ← Modified: Added note about TCP backend option
 └── RUST_INTEGRATION_SUMMARY.md   ← This file
 ```
-
-## Key Takeaways
-
-1. **FFI is a bridge, not a barrier** - Rust and C can work together seamlessly
-2. **Minimal interface = minimal risk** - Only TCP crosses the FFI boundary
-3. **Safety without sacrifice** - Rust provides safety with C-level performance
-4. **Incremental migration** - Can port one module at a time
-5. **Tooling matters** - `bindgen` automates the tedious parts
-
-## Next Steps
-
-To continue development:
-
-1. **Implement state machine** - Start with CLOSED→LISTEN→SYN_RCVD→ESTABLISHED
-2. **Add packet parsing** - Read TCP header fields in Rust
-3. **Implement ACK logic** - Track sequence numbers and acknowledgments
-4. **Port modular components** - Use the existing tcp_pcb.h module structure
-5. **Test incrementally** - Verify each feature as it's added
-
----
-
-**Status:** ✅ **FFI Integration Complete and Working**
-**Next:** Implement actual TCP protocol logic in Rust
