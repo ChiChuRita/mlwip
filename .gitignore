@@ -69,3 +69,11 @@
 .cache
 
 /src/core/tcp_rust/target/
+REMAINING_IMPLEMENTATION.md
+RUST_MODULARIZATION_ROADMAP.md
+src/core/tcp_rust/ARCHITECTURE.md
+src/core/tcp_rust/CONNECTION_TEARDOWN_COMPLETE.md
+src/core/tcp_rust/IMPLEMENTATION_SUMMARY.md
+src/core/tcp_rust/QUICK_START_TESTING.md
+src/core/tcp_rust/TEST_SUCCESS_SUMMARY.md
+src/core/tcp_rust/TEST_TRANSLATION_SUMMARY.md
