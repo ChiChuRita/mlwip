@@ -321,7 +321,7 @@ fn test_tcp_process_rst_seqno() {
     // TODO: Implement sequence number validation in process_rst
     // For now, we skip this test
     // let result = ControlPath::process_rst(&mut state);
-    
+
     // Connection should still be ESTABLISHED
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
 
@@ -344,7 +344,7 @@ fn test_tcp_process_rst_seqno() {
 
     // Process RST with correct seqno
     ControlPath::process_rst(&mut state);
-    
+
     // Connection should be aborted (CLOSED)
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
 }
@@ -462,7 +462,7 @@ fn test_tcp_gen_rst_in_syn_rcvd() {
 #[test]
 fn test_tcp_receive_rst_syn_rcvd_to_listen() {
     let mut state = create_test_state();
-    
+
     // Start in LISTEN
     state.conn_mgmt.state = TcpState::Listen;
 
@@ -696,11 +696,6 @@ fn test_tcp_connect_success() {
     assert_eq!(state.flow_ctrl.rcv_wnd, 4096);
     assert!(state.cong_ctrl.cwnd > 0);
 }
-
-// NOTE: test_tcp_connect_without_bind removed because lwIP allows tcp_connect
-// without prior tcp_bind - it auto-assigns a port (see tcp.c:1120-1125).
-// Our modularized control path doesn't handle port allocation (that's a
-// separate concern), so we don't test this scenario.
 
 #[test]
 fn test_tcp_connect_wrong_state() {
