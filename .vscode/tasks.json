@@ -62,6 +62,25 @@
             "group": "build"
         },
         {
+            "label": "🚀 Run All TCP Tests (50 tests)",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["test", "--", "--nocapture"],
+            "options": {
+                "cwd": "${workspaceFolder}/src/core/tcp_rust"
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
             "label": "cargo test",
             "type": "shell",
             "command": "cargo",

@@ -1,11 +1,42 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(lldb) Debug Rust Test - specific test",
+            "name": "🎯 Run Control Path Tests (42 tests)",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "control_path_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "🤝 Run Handshake Tests (5 tests)",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "handshake_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "🔧 Run Helper Tests (3 tests)",
             "type": "lldb",
             "request": "launch",
             "cargo": {
@@ -14,18 +45,65 @@
                     "--no-run",
                     "--lib",
                     "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
-                ],
-                "filter": {
-                    "name": "handshake_tests",
-                    "kind": "test"
-                }
+                ]
             },
-            "args": ["${input:testName}", "--exact", "--nocapture"],
+            "args": ["--nocapture"],
             "cwd": "${workspaceFolder}/src/core/tcp_rust",
             "sourceLanguages": ["rust"]
         },
         {
-            "name": "(lldb) Debug Rust - three_way_handshake_passive",
+            "name": "🐛 Debug: Active Close Test",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "control_path_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["test_tcp_active_close", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "🐛 Debug: Passive Close Test",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "control_path_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["test_tcp_passive_close", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "🐛 Debug: Simultaneous Close Test",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "control_path_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["test_tcp_simultaneous_close", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "🐛 Debug: Handshake Test - Passive",
             "type": "lldb",
             "request": "launch",
             "cargo": {
@@ -42,27 +120,55 @@
             "sourceLanguages": ["rust"]
         },
         {
-            "name": "(lldb) Debug All Rust Tests",
+            "name": "🐛 Debug: Handshake Test - Active",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
+                    "--test",
+                    "handshake_tests",
                     "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
                 ]
             },
-            "args": ["--nocapture"],
+            "args": ["test_three_way_handshake_active", "--exact", "--nocapture"],
             "cwd": "${workspaceFolder}/src/core/tcp_rust",
             "sourceLanguages": ["rust"]
-        }
-    ],
-    "inputs": [
+        },
         {
-            "id": "testName",
-            "type": "promptString",
-            "description": "Enter the test name to debug",
-            "default": "test_three_way_handshake_passive"
+            "name": "🐛 Debug: Full Server Lifecycle",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "control_path_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["test_full_server_lifecycle", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
+        },
+        {
+            "name": "🐛 Debug: Full Client Lifecycle",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test",
+                    "control_path_tests",
+                    "--manifest-path=${workspaceFolder}/src/core/tcp_rust/Cargo.toml"
+                ]
+            },
+            "args": ["test_full_client_lifecycle", "--exact", "--nocapture"],
+            "cwd": "${workspaceFolder}/src/core/tcp_rust",
+            "sourceLanguages": ["rust"]
         }
     ]
 }
