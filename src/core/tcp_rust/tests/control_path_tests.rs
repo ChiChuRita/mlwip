@@ -687,31 +687,20 @@ fn test_tcp_connect_success() {
     assert_eq!(state.conn_mgmt.remote_ip.addr, TEST_REMOTE_IP);
     assert_eq!(state.conn_mgmt.remote_port, 80);
 
-    // ISS should be initialized
+    // ISS should be initialized (matching lwIP behavior)
     assert_ne!(state.rod.iss, 0);
     assert_eq!(state.rod.snd_nxt, state.rod.iss);
-    assert_eq!(state.rod.lastack, state.rod.iss);
+    assert_eq!(state.rod.lastack, state.rod.iss.wrapping_sub(1)); // lwIP sets lastack = iss - 1
 
     // Windows should be initialized
     assert_eq!(state.flow_ctrl.rcv_wnd, 4096);
     assert!(state.cong_ctrl.cwnd > 0);
 }
 
-#[test]
-fn test_tcp_connect_without_bind() {
-    // Create fresh state without pre-assigned port
-    let mut state = TcpConnectionState::new();
-    state.conn_mgmt.state = TcpState::Closed;
-
-    // Cannot connect without binding to local port
-    let result = ControlPath::tcp_connect(
-        &mut state,
-        ffi::ip_addr_t { addr: TEST_REMOTE_IP },
-        80,
-    );
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "Must bind to local port before connect");
-}
+// NOTE: test_tcp_connect_without_bind removed because lwIP allows tcp_connect
+// without prior tcp_bind - it auto-assigns a port (see tcp.c:1120-1125).
+// Our modularized control path doesn't handle port allocation (that's a
+// separate concern), so we don't test this scenario.
 
 #[test]
 fn test_tcp_connect_wrong_state() {
