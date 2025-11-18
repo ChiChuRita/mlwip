@@ -374,7 +374,7 @@ Successfully eliminated the privileged control path through 7-step refactoring:
 6. **Step 6:** Extracted shared types (`tcp_types.rs`) and API (`tcp_api.rs`)
 7. **Step 7:** Updated architecture documentation
 
-**Result:** 
+**Result:**
 - ✅ Five disjoint components with clear ownership boundaries
 - ✅ No single function writes to multiple components
 - ✅ Each component owns its state and methods

@@ -38,11 +38,111 @@ The TCP layer is implemented in Rust while the rest of lwIP remains in C:
 
 ## Files
 
+### Build Configuration
 - **`Cargo.toml`**: Rust project configuration with size optimization settings
 - **`build.rs`**: Build script that uses bindgen to generate Rust bindings from C headers
 - **`wrapper.h`**: C headers to parse for FFI bindings
-- **`src/lib.rs`**: Main Rust library with exported functions
+
+### Core Modules
+- **`src/lib.rs`**: Main Rust library with module declarations and FFI exports
 - **`src/ffi.rs`**: FFI type definitions and bindings to C functions
+- **`src/tcp_types.rs`**: Shared TCP types (TcpFlags, TcpSegment, validation enums)
+- **`src/tcp_api.rs`**: High-level API functions (bind, listen, connect, close, abort)
+- **`src/tcp_in.rs`**: Input dispatcher for packet processing
+- **`src/tcp_out.rs`**: Output handling
+- **`src/state.rs`**: TcpState enum and TcpStateData aggregator
+
+### Component Architecture
+- **`src/components/mod.rs`**: Component module exports
+- **`src/components/connection_mgmt.rs`**: TCP state machine (293 lines)
+- **`src/components/rod.rs`**: Reliability, Ordering, Duplication detection (309 lines)
+- **`src/components/flow_control.rs`**: Receive window management (189 lines)
+- **`src/components/congestion_control.rs`**: cwnd, ssthresh management (164 lines)
+
+### Deprecated
+- **`src/control_path.rs`**: Legacy module (deprecated, kept for test compatibility)
+
+### Tests
+- **`src/tests/unit_tests.rs`**: Component unit tests
+- **`src/tests/control_path_tests.rs`**: State machine integration tests (42 tests)
+- **`src/tests/handshake_tests.rs`**: Connection setup/teardown tests
+- **`src/tests/test_helpers.rs`**: Test utilities
+
+## Modular Component Architecture
+
+### Design Philosophy
+
+This implementation uses a **modular component architecture** to eliminate the privileged control path anti-pattern:
+
+**Before (Privileged Control Path):**
+```
+┌────────────────────────────┐
+│   ControlPath              │
+│   ├─ validate_rst()        │
+│   ├─ validate_ack()        │
+│   ├─ tcp_input()           │ ← Single struct writes to ALL components
+│   └─ [many other methods]  │
+└────────────────────────────┘
+         │ │ │ │
+         ↓ ↓ ↓ ↓
+    [writes to all components]
+```
+
+**After (Component Methods):**
+```
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ ConnectionMgmt│  │     ROD      │  │ FlowControl  │  │   CongCtrl   │
+├──────────────┤  ├──────────────┤  ├──────────────┤  ├──────────────┤
+│ handle_syn() │  │ validate_rst()│  │ update_rcv() │  │ update_cwnd()│
+│ handle_fin() │  │ validate_ack()│  │ get_window() │  │ get_cwnd()   │
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+     Each component owns its state and methods
+```
+
+### Five Disjoint Components
+
+1. **ConnectionMgmt** - TCP state machine
+   - States: CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED, etc.
+   - Methods: `handle_syn()`, `handle_fin()`, `transition_to()`
+   - Ownership: TCP connection state only
+
+2. **ROD (Reliability, Ordering, Duplication)** - Sequence number tracking
+   - State: `snd_nxt`, `snd_una`, `rcv_nxt`, `rcv_ann`
+   - Methods: `validate_rst()`, `validate_ack()`, `update_send()`, `update_recv()`
+   - Ownership: All sequence numbers
+
+3. **FlowControl** - Receive window management
+   - State: `rcv_wnd`, advertised window
+   - Methods: `update_rcv_wnd()`, `get_advertised_window()`
+   - Ownership: Receive-side buffer management
+
+4. **CongestionControl** - Congestion window management
+   - State: `cwnd`, `ssthresh`, `rto`
+   - Methods: `update_cwnd()`, `handle_ack()`, `handle_timeout()`
+   - Ownership: Send-side congestion state
+
+5. **TcpStateData** - Aggregator (read-only access)
+   - Contains references to all 4 components
+   - Provides coordinated state queries
+   - Does NOT write to components (only components write to themselves)
+
+### Benefits
+
+✅ **Clear ownership** - Each component owns its state  
+✅ **No write conflicts** - Components don't write to each other  
+✅ **Better testability** - Test components in isolation  
+✅ **Easier debugging** - Bugs are localized to single components  
+✅ **Type safety** - Compiler enforces boundaries  
+
+### Testing
+
+**58 tests, all passing:**
+- 8 unit tests (component methods)
+- 42 control path tests (state machine integration)
+- 5 handshake tests (connection setup/teardown)
+- 3 test helpers
+
+Run tests: `cargo test --all`
 
 ## FFI Explained
 

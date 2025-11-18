@@ -15,7 +15,7 @@ New module for shared TCP types:
 - `TcpFlags` - TCP header flag struct + parsing
 - `TcpSegment` - Parsed segment information
 - `RstValidation` enum - RFC 5961 RST validation results
-- `AckValidation` enum - RFC 5961 ACK validation results  
+- `AckValidation` enum - RFC 5961 ACK validation results
 - `InputAction` enum - Actions to take after processing input
 
 **Rationale:** These types are used across multiple modules and don't belong in any single component.
@@ -67,7 +67,7 @@ Updated module documentation:
 //!
 //! The privileged control path has been eliminated. Logic has been migrated to:
 //! - `tcp_types`: Common types
-//! - `tcp_api`: API functions  
+//! - `tcp_api`: API functions
 //! - `components/*`: Component-specific methods
 //! - `tcp_in`: Input dispatcher
 ```
@@ -97,10 +97,10 @@ src/
 $ cargo check
    Compiling lwip_tcp_rust v0.1.0
    Finished `dev` profile [unoptimized + debuginfo] in 0.01s
-   
+
 $ cargo test
 test result: ok. 8 passed  (unit tests)
-test result: ok. 42 passed (control_path_tests) 
+test result: ok. 42 passed (control_path_tests)
 test result: ok. 5 passed  (handshake_tests)
 test result: ok. 3 passed  (test_helpers)
 
@@ -139,7 +139,7 @@ Key points documented:
 
 **No changes needed** - document was written for target architecture.
 
-#### 2. MODULAR_CONTROL_PATH.md  
+#### 2. MODULAR_CONTROL_PATH.md
 **Status:** Document describes the OLD centralized approach
 
 **Action:** This document is now outdated and describes the architecture we replaced.
@@ -175,7 +175,7 @@ deprecated/
 
 All module headers updated with accurate descriptions:
 - ✅ `tcp_types.rs` - Shared types documentation
-- ✅ `tcp_api.rs` - API functions documentation  
+- ✅ `tcp_api.rs` - API functions documentation
 - ✅ `components/mod.rs` - Component overview
 - ✅ `components/*.rs` - Individual component docs
 - ✅ `state.rs` - Aggregator documentation
@@ -284,7 +284,7 @@ All 58 tests passing. Control path elimination complete.
 
 Refactoring sequence (all 7 steps):
 1. Created 75 component method stubs
-2. Proof-of-concept: LISTEN→SYN_RCVD migration  
+2. Proof-of-concept: LISTEN→SYN_RCVD migration
 3. Migrated all 12 state transitions
 4. Updated all 58 tests to use component methods
 5. Reorganized into modular components/ directory
