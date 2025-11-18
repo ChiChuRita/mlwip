@@ -246,3 +246,550 @@ impl TcpConnectionState {
         }
     }
 }
+
+// ============================================================================
+// Component Method Implementations
+// ============================================================================
+
+// We need to forward-declare TcpSegment since it's defined in control_path.rs
+// This will be resolved when we refactor the modules
+use crate::control_path::TcpSegment;
+
+// ============================================================================
+// Connection Management State Methods
+// ============================================================================
+
+impl ConnectionManagementState {
+    // ------------------------------------------------------------------------
+    // Connection Setup (Handshake)
+    // ------------------------------------------------------------------------
+
+    /// LISTEN → SYN_RCVD: Handle incoming SYN
+    /// Store remote endpoint and transition state
+    pub fn on_syn_in_listen(
+        &mut self,
+        remote_ip: ffi::ip_addr_t,
+        remote_port: u16,
+    ) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+    }
+
+    /// SYN_SENT → ESTABLISHED: Handle incoming SYN+ACK (active open)
+    /// Transition to ESTABLISHED
+    pub fn on_synack_in_synsent(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+    }
+
+    /// SYN_RCVD → ESTABLISHED: Handle ACK of our SYN (passive open)
+    /// Transition to ESTABLISHED
+    pub fn on_ack_in_synrcvd(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_synrcvd")
+    }
+
+    // ------------------------------------------------------------------------
+    // Connection Teardown (Close)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED → FIN_WAIT_1: Application initiates close
+    pub fn on_close_in_established(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::initiate_close")
+    }
+
+    /// CLOSE_WAIT → LAST_ACK: Application closes after receiving peer's FIN
+    pub fn on_close_in_closewait(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::initiate_close")
+    }
+
+    /// ESTABLISHED → CLOSE_WAIT: Receive FIN from peer (passive close)
+    pub fn on_fin_in_established(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_fin_in_established")
+    }
+
+    /// FIN_WAIT_1 → FIN_WAIT_2: ACK of our FIN received
+    pub fn on_ack_in_finwait1(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_finwait1")
+    }
+
+    /// FIN_WAIT_1 → CLOSING: Receive FIN (simultaneous close)
+    pub fn on_fin_in_finwait1(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait1")
+    }
+
+    /// FIN_WAIT_2 → TIME_WAIT: Receive FIN
+    pub fn on_fin_in_finwait2(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait2")
+    }
+
+    /// CLOSING → TIME_WAIT: ACK of our FIN received (simultaneous close)
+    pub fn on_ack_in_closing(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_closing")
+    }
+
+    /// LAST_ACK → CLOSED: ACK of our FIN received (passive close complete)
+    pub fn on_ack_in_lastack(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_lastack")
+    }
+
+    /// TIME_WAIT → CLOSED: 2MSL timer expires
+    pub fn on_timewait_timeout(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Implement 2MSL timeout handling")
+    }
+
+    // ------------------------------------------------------------------------
+    // Reset Handling
+    // ------------------------------------------------------------------------
+
+    /// ANY → CLOSED: Receive RST or send RST
+    pub fn on_rst(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_rst")
+    }
+
+    /// ANY → CLOSED: Abort connection (send RST)
+    pub fn on_abort(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_abort")
+    }
+
+    // ------------------------------------------------------------------------
+    // API-Initiated State Changes
+    // ------------------------------------------------------------------------
+
+    /// CLOSED → CLOSED: Bind to local address/port
+    pub fn on_bind(
+        &mut self,
+        local_ip: ffi::ip_addr_t,
+        local_port: u16,
+    ) -> Result<u16, &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_bind")
+    }
+
+    /// CLOSED → LISTEN: Start listening for connections
+    pub fn on_listen(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_listen")
+    }
+
+    /// CLOSED → SYN_SENT: Initiate active connection
+    pub fn on_connect(
+        &mut self,
+        remote_ip: ffi::ip_addr_t,
+        remote_port: u16,
+    ) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+    }
+
+    // ------------------------------------------------------------------------
+    // No-op handlers (Connection Management doesn't change in these states)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED: Handle data/ACK (no state transition)
+    pub fn on_data_in_established(&mut self) -> Result<(), &'static str> {
+        Ok(()) // No state change for data in ESTABLISHED
+    }
+
+    /// CLOSE_WAIT: Handle ACK (no state transition)
+    pub fn on_ack_in_closewait(&mut self) -> Result<(), &'static str> {
+        Ok(()) // No state change for ACK in CLOSE_WAIT
+    }
+
+    /// TIME_WAIT: Handle retransmitted FIN (no state transition)
+    pub fn on_fin_in_timewait(&mut self) -> Result<(), &'static str> {
+        Ok(()) // Remain in TIME_WAIT, restart 2MSL timer
+    }
+}
+
+// ============================================================================
+// Reliable Ordered Delivery State Methods
+// ============================================================================
+
+impl ReliableOrderedDeliveryState {
+    // ------------------------------------------------------------------------
+    // Connection Setup (Handshake)
+    // ------------------------------------------------------------------------
+
+    /// LISTEN → SYN_RCVD: Initialize sequence numbers from incoming SYN
+    pub fn on_syn_in_listen(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+    }
+
+    /// SYN_SENT → ESTABLISHED: Process SYN+ACK, update sequence numbers
+    pub fn on_synack_in_synsent(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+    }
+
+    /// SYN_RCVD → ESTABLISHED: Process ACK of our SYN
+    pub fn on_ack_in_synrcvd(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_synrcvd")
+    }
+
+    // ------------------------------------------------------------------------
+    // Connection Teardown (Close)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED → FIN_WAIT_1: Prepare to send FIN (no rcv_nxt change)
+    pub fn on_close_in_established(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Implement - may need to mark FIN pending")
+    }
+
+    /// CLOSE_WAIT → LAST_ACK: Prepare to send FIN
+    pub fn on_close_in_closewait(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Implement - may need to mark FIN pending")
+    }
+
+    /// ESTABLISHED → CLOSE_WAIT: Process FIN, advance rcv_nxt
+    pub fn on_fin_in_established(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_fin_in_established")
+    }
+
+    /// FIN_WAIT_1 → FIN_WAIT_2: Process ACK of our FIN
+    pub fn on_ack_in_finwait1(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_finwait1")
+    }
+
+    /// FIN_WAIT_1 → CLOSING: Process FIN (simultaneous close)
+    pub fn on_fin_in_finwait1(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait1")
+    }
+
+    /// FIN_WAIT_2 → TIME_WAIT: Process FIN
+    pub fn on_fin_in_finwait2(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait2")
+    }
+
+    /// CLOSING → TIME_WAIT: Process ACK of our FIN
+    pub fn on_ack_in_closing(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_closing")
+    }
+
+    /// LAST_ACK → CLOSED: Process ACK of our FIN
+    pub fn on_ack_in_lastack(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_lastack")
+    }
+
+    /// TIME_WAIT: Process retransmitted FIN (no sequence change)
+    pub fn on_fin_in_timewait(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Implement - validate sequence number")
+    }
+
+    // ------------------------------------------------------------------------
+    // Reset Handling
+    // ------------------------------------------------------------------------
+
+    /// ANY → CLOSED: Reset sequence numbers
+    pub fn on_rst(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Implement - clear sequence numbers")
+    }
+
+    /// ANY → CLOSED: Abort connection
+    pub fn on_abort(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Implement - clear sequence numbers")
+    }
+
+    // ------------------------------------------------------------------------
+    // API-Initiated State Changes
+    // ------------------------------------------------------------------------
+
+    /// CLOSED → SYN_SENT: Generate ISS for active open
+    pub fn on_connect(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+    }
+
+    // ------------------------------------------------------------------------
+    // Data Path (Future - for ESTABLISHED state)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED: Process incoming data segment
+    pub fn on_data_in_established(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update rcv_nxt")
+    }
+
+    /// ESTABLISHED: Process ACK of our data
+    pub fn on_ack_in_established(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update lastack")
+    }
+
+    /// CLOSE_WAIT: Process ACK (connection closing but still receiving)
+    pub fn on_ack_in_closewait(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update lastack")
+    }
+
+    // ------------------------------------------------------------------------
+    // Validation Helpers (Read-only)
+    // ------------------------------------------------------------------------
+
+    /// Validate sequence number (RFC 793)
+    pub fn validate_sequence_number(
+        &self,
+        seg: &TcpSegment,
+        rcv_wnd: u16,
+    ) -> bool {
+        unimplemented!("TODO: Migrate from control_path - validation logic")
+    }
+
+    /// Validate ACK field (RFC 5961)
+    pub fn validate_ack(&self, seg: &TcpSegment) -> crate::control_path::AckValidation {
+        unimplemented!("TODO: Migrate from control_path - ACK validation")
+    }
+
+    /// Validate RST segment (RFC 5961)
+    pub fn validate_rst(&self, seg: &TcpSegment, rcv_wnd: u16) -> crate::control_path::RstValidation {
+        unimplemented!("TODO: Migrate from control_path - RST validation")
+    }
+}
+
+// ============================================================================
+// Flow Control State Methods
+// ============================================================================
+
+impl FlowControlState {
+    // ------------------------------------------------------------------------
+    // Connection Setup (Handshake)
+    // ------------------------------------------------------------------------
+
+    /// LISTEN → SYN_RCVD: Initialize windows from SYN
+    pub fn on_syn_in_listen(
+        &mut self,
+        seg: &TcpSegment,
+        _conn_mgmt: &ConnectionManagementState,
+    ) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+    }
+
+    /// SYN_SENT → ESTABLISHED: Store peer's advertised window
+    pub fn on_synack_in_synsent(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+    }
+
+    /// SYN_RCVD → ESTABLISHED: Update peer's window
+    pub fn on_ack_in_synrcvd(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_ack_in_synrcvd")
+    }
+
+    // ------------------------------------------------------------------------
+    // Connection Teardown (No-ops - FC doesn't change on close)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED → FIN_WAIT_1: No flow control change
+    pub fn on_close_in_established(&mut self) -> Result<(), &'static str> {
+        Ok(()) // No window change on FIN
+    }
+
+    /// CLOSE_WAIT → LAST_ACK: No flow control change
+    pub fn on_close_in_closewait(&mut self) -> Result<(), &'static str> {
+        Ok(()) // No window change on FIN
+    }
+
+    /// ESTABLISHED → CLOSE_WAIT: No flow control change
+    pub fn on_fin_in_established(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change on receiving FIN
+    }
+
+    /// FIN_WAIT_1 → FIN_WAIT_2: No flow control change
+    pub fn on_ack_in_finwait1(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change
+    }
+
+    /// FIN_WAIT_1 → CLOSING: No flow control change
+    pub fn on_fin_in_finwait1(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change
+    }
+
+    /// FIN_WAIT_2 → TIME_WAIT: No flow control change
+    pub fn on_fin_in_finwait2(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change
+    }
+
+    /// CLOSING → TIME_WAIT: No flow control change
+    pub fn on_ack_in_closing(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change
+    }
+
+    /// LAST_ACK → CLOSED: No flow control change
+    pub fn on_ack_in_lastack(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change
+    }
+
+    /// TIME_WAIT: No flow control change
+    pub fn on_fin_in_timewait(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No window change
+    }
+
+    // ------------------------------------------------------------------------
+    // Reset Handling
+    // ------------------------------------------------------------------------
+
+    /// ANY → CLOSED: Clear window state
+    pub fn on_rst(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Clear windows on RST")
+    }
+
+    /// ANY → CLOSED: Clear window state
+    pub fn on_abort(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Clear windows on abort")
+    }
+
+    // ------------------------------------------------------------------------
+    // API-Initiated State Changes
+    // ------------------------------------------------------------------------
+
+    /// CLOSED → SYN_SENT: Initialize our receive window for active open
+    pub fn on_connect(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+    }
+
+    // ------------------------------------------------------------------------
+    // Data Path (Future - for ESTABLISHED state)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED: Update windows based on incoming segment
+    pub fn on_data_in_established(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update snd_wnd, rcv_wnd")
+    }
+
+    /// ESTABLISHED: Update send window from ACK
+    pub fn on_ack_in_established(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update snd_wnd")
+    }
+
+    /// CLOSE_WAIT: Update send window from ACK
+    pub fn on_ack_in_closewait(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update snd_wnd")
+    }
+}
+
+// ============================================================================
+// Congestion Control State Methods
+// ============================================================================
+
+impl CongestionControlState {
+    // ------------------------------------------------------------------------
+    // Connection Setup (Handshake)
+    // ------------------------------------------------------------------------
+
+    /// LISTEN → SYN_RCVD: Initialize cwnd (passive open)
+    pub fn on_syn_in_listen(
+        &mut self,
+        conn_mgmt: &ConnectionManagementState,
+    ) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+    }
+
+    /// SYN_SENT → ESTABLISHED: Initialize cwnd (active open)
+    pub fn on_synack_in_synsent(
+        &mut self,
+        conn_mgmt: &ConnectionManagementState,
+    ) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+    }
+
+    /// SYN_RCVD → ESTABLISHED: No congestion control change
+    pub fn on_ack_in_synrcvd(&mut self) -> Result<(), &'static str> {
+        Ok(()) // cwnd already initialized in on_syn_in_listen
+    }
+
+    // ------------------------------------------------------------------------
+    // Connection Teardown (No-ops - CC doesn't change on close)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED → FIN_WAIT_1: No congestion control change
+    pub fn on_close_in_established(&mut self) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change on FIN
+    }
+
+    /// CLOSE_WAIT → LAST_ACK: No congestion control change
+    pub fn on_close_in_closewait(&mut self) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change on FIN
+    }
+
+    /// ESTABLISHED → CLOSE_WAIT: No congestion control change
+    pub fn on_fin_in_established(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change on receiving FIN
+    }
+
+    /// FIN_WAIT_1 → FIN_WAIT_2: No congestion control change
+    pub fn on_ack_in_finwait1(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change
+    }
+
+    /// FIN_WAIT_1 → CLOSING: No congestion control change
+    pub fn on_fin_in_finwait1(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change
+    }
+
+    /// FIN_WAIT_2 → TIME_WAIT: No congestion control change
+    pub fn on_fin_in_finwait2(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change
+    }
+
+    /// CLOSING → TIME_WAIT: No congestion control change
+    pub fn on_ack_in_closing(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change
+    }
+
+    /// LAST_ACK → CLOSED: No congestion control change
+    pub fn on_ack_in_lastack(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change
+    }
+
+    /// TIME_WAIT: No congestion control change
+    pub fn on_fin_in_timewait(&mut self, _seg: &TcpSegment) -> Result<(), &'static str> {
+        Ok(()) // No cwnd change
+    }
+
+    // ------------------------------------------------------------------------
+    // Reset Handling
+    // ------------------------------------------------------------------------
+
+    /// ANY → CLOSED: Reset congestion control state
+    pub fn on_rst(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Clear cwnd on RST")
+    }
+
+    /// ANY → CLOSED: Reset congestion control state
+    pub fn on_abort(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Clear cwnd on abort")
+    }
+
+    // ------------------------------------------------------------------------
+    // API-Initiated State Changes
+    // ------------------------------------------------------------------------
+
+    /// CLOSED → SYN_SENT: Initialize cwnd for active open
+    pub fn on_connect(
+        &mut self,
+        conn_mgmt: &ConnectionManagementState,
+    ) -> Result<(), &'static str> {
+        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+    }
+
+    // ------------------------------------------------------------------------
+    // Data Path (Future - for ESTABLISHED state)
+    // ------------------------------------------------------------------------
+
+    /// ESTABLISHED: Update cwnd based on ACK (slow start / congestion avoidance)
+    pub fn on_ack_in_established(&mut self, seg: &TcpSegment, bytes_acked: u16) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update cwnd based on ACK")
+    }
+
+    /// ESTABLISHED: Handle duplicate ACK (fast retransmit)
+    pub fn on_dupack_in_established(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - fast retransmit logic")
+    }
+
+    /// ESTABLISHED: Handle timeout (congestion event)
+    pub fn on_timeout_in_established(&mut self) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - reduce cwnd on timeout")
+    }
+
+    /// CLOSE_WAIT: Update cwnd based on ACK
+    pub fn on_ack_in_closewait(&mut self, seg: &TcpSegment, bytes_acked: u16) -> Result<(), &'static str> {
+        unimplemented!("TODO: Future data path - update cwnd")
+    }
+}
+
+// ============================================================================
+// Demultiplexing State Methods (Stateless)
+// ============================================================================
+
+impl DemuxState {
+    // Demultiplexing is stateless - uses 4-tuple from ConnectionManagementState
+    // No methods needed
+}
