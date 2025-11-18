@@ -53,12 +53,26 @@ impl TcpRx {
             crate::state::TcpState::Established => {
                 Self::process_established(state, &seg)
             }
+            crate::state::TcpState::FinWait1 => {
+                Self::process_finwait1(state, &seg)
+            }
+            crate::state::TcpState::FinWait2 => {
+                Self::process_finwait2(state, &seg)
+            }
+            crate::state::TcpState::CloseWait => {
+                Self::process_closewait(state, &seg)
+            }
+            crate::state::TcpState::Closing => {
+                Self::process_closing(state, &seg)
+            }
+            crate::state::TcpState::LastAck => {
+                Self::process_lastack(state, &seg)
+            }
+            crate::state::TcpState::TimeWait => {
+                Self::process_timewait(state, &seg)
+            }
             crate::state::TcpState::Closed => {
                 Err("Connection is closed")
-            }
-            _ => {
-                // TODO: Implement other states (FIN_WAIT, CLOSE_WAIT, etc.)
-                Err("State not yet implemented")
             }
         }
     }
@@ -134,16 +148,16 @@ impl TcpRx {
 
             // NEW APPROACH: Call component methods instead of control path
             // Each component handles its own state updates
-            
+
             // 1. ROD: Initialize sequence numbers
             state.rod.on_syn_in_listen(seg)?;
-            
+
             // 2. Flow Control: Initialize windows
             state.flow_ctrl.on_syn_in_listen(seg, &state.conn_mgmt)?;
-            
+
             // 3. Congestion Control: Initialize cwnd
             state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt)?;
-            
+
             // 4. Connection Management: Store endpoint and transition state
             state.conn_mgmt.on_syn_in_listen(remote_ip, remote_port)?;
 
@@ -163,13 +177,21 @@ impl TcpRx {
     ) -> Result<(), &'static str> {
         // Check for RST
         if seg.flags.rst {
-            ControlPath::process_rst(state);
+            // Call component methods for RST
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
             return Err("Connection reset");
         }
 
         // Check for SYN+ACK
         if seg.flags.syn && seg.flags.ack {
-            ControlPath::process_synack_in_synsent(state, seg)?;
+            // Call component methods for SYN+ACK in SYN_SENT
+            state.rod.on_synack_in_synsent(seg)?;
+            state.flow_ctrl.on_synack_in_synsent(seg)?;
+            state.cong_ctrl.on_synack_in_synsent(&state.conn_mgmt)?;
+            state.conn_mgmt.on_synack_in_synsent()?;
 
             // Now we need to send ACK
             // This will be handled by the TX path
@@ -192,13 +214,21 @@ impl TcpRx {
     ) -> Result<(), &'static str> {
         // Check for RST
         if seg.flags.rst {
-            ControlPath::process_rst(state);
+            // Call component methods for RST
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
             return Err("Connection reset");
         }
 
         // Check for ACK to complete handshake
         if seg.flags.ack && !seg.flags.syn {
-            ControlPath::process_ack_in_synrcvd(state, seg)?;
+            // Call component methods for ACK in SYN_RCVD
+            state.rod.on_ack_in_synrcvd(seg)?;
+            state.flow_ctrl.on_ack_in_synrcvd(seg)?;
+            state.cong_ctrl.on_ack_in_synrcvd()?;
+            state.conn_mgmt.on_ack_in_synrcvd()?;
             return Ok(());
         }
 
@@ -216,17 +246,181 @@ impl TcpRx {
         state: &mut TcpConnectionState,
         seg: &TcpSegment,
     ) -> Result<(), &'static str> {
-        // For now, just basic validation
-        // Full data path will be implemented later
-
+        // Check for RST
         if seg.flags.rst {
-            ControlPath::process_rst(state);
+            // Call component methods for RST
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
             return Err("Connection reset");
+        }
+
+        // Check for FIN (peer closing connection)
+        if seg.flags.fin {
+            // Call component methods for FIN in ESTABLISHED
+            state.rod.on_fin_in_established(seg)?;
+            state.flow_ctrl.on_fin_in_established(seg)?;
+            state.cong_ctrl.on_fin_in_established(seg)?;
+            state.conn_mgmt.on_fin_in_established()?;
+            // Should send ACK
+            return Ok(());
         }
 
         // TODO: Process data and ACKs
         // This is where the data path components will come in
 
+        Ok(())
+    }
+
+    /// Process segment in FIN_WAIT_1 state
+    fn process_finwait1(
+        state: &mut TcpConnectionState,
+        seg: &TcpSegment,
+    ) -> Result<(), &'static str> {
+        // Check for RST
+        if seg.flags.rst {
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
+            return Err("Connection reset");
+        }
+
+        // Check for ACK (which may also have FIN set)
+        if seg.flags.ack {
+            state.rod.on_ack_in_finwait1(seg)?;
+            state.flow_ctrl.on_ack_in_finwait1(seg)?;
+            state.cong_ctrl.on_ack_in_finwait1(seg)?;
+            state.conn_mgmt.on_ack_in_finwait1()?;
+            
+            // If FIN is also set, handle it
+            if seg.flags.fin {
+                state.rod.on_fin_in_finwait1(seg)?;
+                state.flow_ctrl.on_fin_in_finwait1(seg)?;
+                state.cong_ctrl.on_fin_in_finwait1(seg)?;
+                state.conn_mgmt.on_fin_in_finwait1()?;
+            }
+            return Ok(());
+        }
+
+        // Check for FIN only (without ACK - unusual)
+        if seg.flags.fin {
+            state.rod.on_fin_in_finwait1(seg)?;
+            state.flow_ctrl.on_fin_in_finwait1(seg)?;
+            state.cong_ctrl.on_fin_in_finwait1(seg)?;
+            state.conn_mgmt.on_fin_in_finwait1()?;
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    /// Process segment in FIN_WAIT_2 state
+    fn process_finwait2(
+        state: &mut TcpConnectionState,
+        seg: &TcpSegment,
+    ) -> Result<(), &'static str> {
+        // Check for RST
+        if seg.flags.rst {
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
+            return Err("Connection reset");
+        }
+
+        // Check for FIN
+        if seg.flags.fin {
+            state.rod.on_fin_in_finwait2(seg)?;
+            state.flow_ctrl.on_fin_in_finwait2(seg)?;
+            state.cong_ctrl.on_fin_in_finwait2(seg)?;
+            state.conn_mgmt.on_fin_in_finwait2()?;
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    /// Process segment in CLOSE_WAIT state
+    fn process_closewait(
+        state: &mut TcpConnectionState,
+        seg: &TcpSegment,
+    ) -> Result<(), &'static str> {
+        // Check for RST
+        if seg.flags.rst {
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
+            return Err("Connection reset");
+        }
+
+        // In CLOSE_WAIT, we're waiting for the application to close
+        // Just process any data/ACKs
+        // TODO: Handle data processing
+        Ok(())
+    }
+
+    /// Process segment in CLOSING state
+    fn process_closing(
+        state: &mut TcpConnectionState,
+        seg: &TcpSegment,
+    ) -> Result<(), &'static str> {
+        // Check for RST
+        if seg.flags.rst {
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
+            return Err("Connection reset");
+        }
+
+        // Check for ACK
+        if seg.flags.ack {
+            state.rod.on_ack_in_closing(seg)?;
+            state.flow_ctrl.on_ack_in_closing(seg)?;
+            state.cong_ctrl.on_ack_in_closing(seg)?;
+            state.conn_mgmt.on_ack_in_closing()?;
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    /// Process segment in LAST_ACK state
+    fn process_lastack(
+        state: &mut TcpConnectionState,
+        seg: &TcpSegment,
+    ) -> Result<(), &'static str> {
+        // Check for RST
+        if seg.flags.rst {
+            state.rod.on_rst()?;
+            state.flow_ctrl.on_rst()?;
+            state.cong_ctrl.on_rst()?;
+            state.conn_mgmt.on_rst()?;
+            return Err("Connection reset");
+        }
+
+        // Check for ACK
+        if seg.flags.ack {
+            state.rod.on_ack_in_lastack(seg)?;
+            state.flow_ctrl.on_ack_in_lastack(seg)?;
+            state.cong_ctrl.on_ack_in_lastack(seg)?;
+            state.conn_mgmt.on_ack_in_lastack()?;
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    /// Process segment in TIME_WAIT state
+    fn process_timewait(
+        _state: &mut TcpConnectionState,
+        _seg: &TcpSegment,
+    ) -> Result<(), &'static str> {
+        // In TIME_WAIT, we just absorb packets
+        // The timer will eventually close the connection
         Ok(())
     }
 }

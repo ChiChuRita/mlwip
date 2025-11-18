@@ -247,7 +247,7 @@ impl ControlPath {
     ) -> RstValidation {
         let seqno = seg.seqno;
         let rcv_nxt = state.rod.rcv_nxt;
-        
+
         // Check if sequence number is in window
         if Self::validate_sequence_number(state, seg) {
             // In window - accept the RST
@@ -292,7 +292,7 @@ impl ControlPath {
     /// Transition: ESTABLISHED -> FIN_WAIT_1
     ///             CLOSE_WAIT -> LAST_ACK
     /// Returns: Ok(true) if FIN should be sent, Ok(false) otherwise
-    /// 
+    ///
     /// Note: This function does NOT increment snd_nxt. The FIN transmission
     /// (handled by output layer) will increment snd_nxt when the FIN is actually sent.
     pub fn initiate_close(state: &mut TcpConnectionState) -> Result<bool, &'static str> {
@@ -525,7 +525,7 @@ impl ControlPath {
         // Initialize our receive window
         state.flow_ctrl.rcv_wnd = 4096;
         state.flow_ctrl.rcv_ann_wnd = state.flow_ctrl.rcv_wnd;
-        
+
         // Initialize congestion window
         let mss = state.conn_mgmt.mss as u16;
         state.cong_ctrl.cwnd = mss;
@@ -545,7 +545,7 @@ impl ControlPath {
             TcpState::Closed | TcpState::Listen => false,
             _ => true,
         };
-        
+
         // Close immediately
         state.conn_mgmt.state = TcpState::Closed;
         Ok(should_send_rst)
@@ -863,7 +863,7 @@ mod tests {
         };
 
         let remote_ip = unsafe { core::mem::zeroed() };
-        
+
         // OLD APPROACH (still works for backward compatibility)
         let result = ControlPath::process_syn_in_listen(&mut state, &seg, remote_ip, 12345);
 

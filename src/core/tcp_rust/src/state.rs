@@ -289,13 +289,29 @@ impl ConnectionManagementState {
     /// SYN_SENT → ESTABLISHED: Handle incoming SYN+ACK (active open)
     /// Transition to ESTABLISHED
     pub fn on_synack_in_synsent(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+        // Validate we're in SYN_SENT state
+        if self.state != TcpState::SynSent {
+            return Err("Not in SYN_SENT state");
+        }
+
+        // Transition to ESTABLISHED
+        self.state = TcpState::Established;
+
+        Ok(())
     }
 
     /// SYN_RCVD → ESTABLISHED: Handle ACK of our SYN (passive open)
     /// Transition to ESTABLISHED
     pub fn on_ack_in_synrcvd(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_synrcvd")
+        // Validate we're in SYN_RCVD state
+        if self.state != TcpState::SynRcvd {
+            return Err("Not in SYN_RCVD state");
+        }
+
+        // Transition to ESTABLISHED
+        self.state = TcpState::Established;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
@@ -304,42 +320,98 @@ impl ConnectionManagementState {
 
     /// ESTABLISHED → FIN_WAIT_1: Application initiates close
     pub fn on_close_in_established(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::initiate_close")
+        if self.state != TcpState::Established {
+            return Err("Not in ESTABLISHED state");
+        }
+
+        // Transition to FIN_WAIT_1
+        self.state = TcpState::FinWait1;
+
+        Ok(())
     }
 
     /// CLOSE_WAIT → LAST_ACK: Application closes after receiving peer's FIN
     pub fn on_close_in_closewait(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::initiate_close")
+        if self.state != TcpState::CloseWait {
+            return Err("Not in CLOSE_WAIT state");
+        }
+
+        // Transition to LAST_ACK
+        self.state = TcpState::LastAck;
+
+        Ok(())
     }
 
     /// ESTABLISHED → CLOSE_WAIT: Receive FIN from peer (passive close)
     pub fn on_fin_in_established(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_fin_in_established")
+        if self.state != TcpState::Established {
+            return Err("Not in ESTABLISHED state");
+        }
+
+        // Transition to CLOSE_WAIT
+        self.state = TcpState::CloseWait;
+
+        Ok(())
     }
 
     /// FIN_WAIT_1 → FIN_WAIT_2: ACK of our FIN received
     pub fn on_ack_in_finwait1(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_finwait1")
+        if self.state != TcpState::FinWait1 {
+            return Err("Not in FIN_WAIT_1 state");
+        }
+
+        // Transition to FIN_WAIT_2
+        self.state = TcpState::FinWait2;
+
+        Ok(())
     }
 
     /// FIN_WAIT_1 → CLOSING: Receive FIN (simultaneous close)
     pub fn on_fin_in_finwait1(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait1")
+        if self.state != TcpState::FinWait1 {
+            return Err("Not in FIN_WAIT_1 state");
+        }
+
+        // Transition to CLOSING (simultaneous close)
+        self.state = TcpState::Closing;
+
+        Ok(())
     }
 
     /// FIN_WAIT_2 → TIME_WAIT: Receive FIN
     pub fn on_fin_in_finwait2(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait2")
+        if self.state != TcpState::FinWait2 {
+            return Err("Not in FIN_WAIT_2 state");
+        }
+
+        // Transition to TIME_WAIT
+        self.state = TcpState::TimeWait;
+
+        Ok(())
     }
 
     /// CLOSING → TIME_WAIT: ACK of our FIN received (simultaneous close)
     pub fn on_ack_in_closing(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_closing")
+        if self.state != TcpState::Closing {
+            return Err("Not in CLOSING state");
+        }
+
+        // Transition to TIME_WAIT
+        self.state = TcpState::TimeWait;
+
+        Ok(())
     }
 
     /// LAST_ACK → CLOSED: ACK of our FIN received (passive close complete)
     pub fn on_ack_in_lastack(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_lastack")
+        if self.state != TcpState::LastAck {
+            return Err("Not in LAST_ACK state");
+        }
+
+        // Transition to CLOSED
+        self.state = TcpState::Closed;
+
+        Ok(())
     }
 
     /// TIME_WAIT → CLOSED: 2MSL timer expires
@@ -353,12 +425,19 @@ impl ConnectionManagementState {
 
     /// ANY → CLOSED: Receive RST or send RST
     pub fn on_rst(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_rst")
+        // Transition to CLOSED
+        self.state = TcpState::Closed;
+        // TODO: Clean up resources (timers, etc.)
+
+        Ok(())
     }
 
     /// ANY → CLOSED: Abort connection (send RST)
     pub fn on_abort(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_abort")
+        // Immediately close
+        self.state = TcpState::Closed;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
@@ -447,12 +526,34 @@ impl ReliableOrderedDeliveryState {
 
     /// SYN_SENT → ESTABLISHED: Process SYN+ACK, update sequence numbers
     pub fn on_synack_in_synsent(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+        // Validate ACK is for our SYN
+        if seg.ackno != self.iss.wrapping_add(1) {
+            return Err("Invalid ACK number");
+        }
+
+        // Store peer's initial sequence number
+        self.irs = seg.seqno;
+        self.rcv_nxt = seg.seqno.wrapping_add(1);
+
+        // Update our sequence number (SYN is now ACKed)
+        self.snd_nxt = self.iss.wrapping_add(1);
+        self.lastack = seg.ackno;
+
+        Ok(())
     }
 
     /// SYN_RCVD → ESTABLISHED: Process ACK of our SYN
     pub fn on_ack_in_synrcvd(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_synrcvd")
+        // Validate ACK is for our SYN
+        if seg.ackno != self.iss.wrapping_add(1) {
+            return Err("Invalid ACK number");
+        }
+
+        // Update our sequence number (SYN is now ACKed)
+        self.snd_nxt = self.iss.wrapping_add(1);
+        self.lastack = seg.ackno;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
@@ -471,32 +572,83 @@ impl ReliableOrderedDeliveryState {
 
     /// ESTABLISHED → CLOSE_WAIT: Process FIN, advance rcv_nxt
     pub fn on_fin_in_established(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_fin_in_established")
+        // Validate sequence number
+        if seg.seqno != self.rcv_nxt {
+            return Err("Invalid sequence number for FIN");
+        }
+
+        // FIN consumes one sequence number
+        self.rcv_nxt = self.rcv_nxt.wrapping_add(1);
+
+        Ok(())
     }
 
     /// FIN_WAIT_1 → FIN_WAIT_2: Process ACK of our FIN
     pub fn on_ack_in_finwait1(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_finwait1")
+        // Check if this ACKs our FIN
+        // FIN consumes one sequence number, so ACK should be snd_nxt + 1
+        let expected_ack = self.snd_nxt.wrapping_add(1);
+        if seg.ackno != expected_ack {
+            return Err("ACK doesn't acknowledge our FIN");
+        }
+
+        self.lastack = seg.ackno;
+
+        Ok(())
     }
 
     /// FIN_WAIT_1 → CLOSING: Process FIN (simultaneous close)
     pub fn on_fin_in_finwait1(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait1")
+        // Validate sequence number
+        if seg.seqno != self.rcv_nxt {
+            return Err("Invalid sequence number for FIN");
+        }
+
+        // FIN consumes one sequence number
+        self.rcv_nxt = self.rcv_nxt.wrapping_add(1);
+
+        Ok(())
     }
 
     /// FIN_WAIT_2 → TIME_WAIT: Process FIN
     pub fn on_fin_in_finwait2(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_fin_in_finwait2")
+        // Validate sequence number
+        if seg.seqno != self.rcv_nxt {
+            return Err("Invalid sequence number for FIN");
+        }
+
+        // FIN consumes one sequence number
+        self.rcv_nxt = self.rcv_nxt.wrapping_add(1);
+
+        Ok(())
     }
 
     /// CLOSING → TIME_WAIT: Process ACK of our FIN
     pub fn on_ack_in_closing(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_closing")
+        // Check if this ACKs our FIN
+        // FIN consumes one sequence number, so ACK should be snd_nxt + 1
+        let expected_ack = self.snd_nxt.wrapping_add(1);
+        if seg.ackno != expected_ack {
+            return Err("ACK doesn't acknowledge our FIN");
+        }
+
+        self.lastack = seg.ackno;
+
+        Ok(())
     }
 
     /// LAST_ACK → CLOSED: Process ACK of our FIN
     pub fn on_ack_in_lastack(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_lastack")
+        // Check if this ACKs our FIN
+        // FIN consumes one sequence number, so ACK should be snd_nxt + 1
+        let expected_ack = self.snd_nxt.wrapping_add(1);
+        if seg.ackno != expected_ack {
+            return Err("ACK doesn't acknowledge our FIN");
+        }
+
+        self.lastack = seg.ackno;
+
+        Ok(())
     }
 
     /// TIME_WAIT: Process retransmitted FIN (no sequence change)
@@ -510,12 +662,22 @@ impl ReliableOrderedDeliveryState {
 
     /// ANY → CLOSED: Reset sequence numbers
     pub fn on_rst(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Implement - clear sequence numbers")
+        // Clear sequence numbers
+        self.snd_nxt = 0;
+        self.rcv_nxt = 0;
+        self.lastack = 0;
+
+        Ok(())
     }
 
     /// ANY → CLOSED: Abort connection
     pub fn on_abort(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Implement - clear sequence numbers")
+        // Clear sequence numbers
+        self.snd_nxt = 0;
+        self.rcv_nxt = 0;
+        self.lastack = 0;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
@@ -599,12 +761,19 @@ impl FlowControlState {
 
     /// SYN_SENT → ESTABLISHED: Store peer's advertised window
     pub fn on_synack_in_synsent(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+        // Store peer's advertised window
+        self.snd_wnd = seg.wnd;
+        self.snd_wnd_max = seg.wnd;
+
+        Ok(())
     }
 
     /// SYN_RCVD → ESTABLISHED: Update peer's window
     pub fn on_ack_in_synrcvd(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_ack_in_synrcvd")
+        // Update peer's advertised window
+        self.snd_wnd = seg.wnd;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
@@ -662,12 +831,20 @@ impl FlowControlState {
 
     /// ANY → CLOSED: Clear window state
     pub fn on_rst(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Clear windows on RST")
+        // Clear window state
+        self.snd_wnd = 0;
+        self.rcv_wnd = 0;
+
+        Ok(())
     }
 
     /// ANY → CLOSED: Clear window state
     pub fn on_abort(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Clear windows on abort")
+        // Clear window state
+        self.snd_wnd = 0;
+        self.rcv_wnd = 0;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
@@ -717,9 +894,9 @@ impl CongestionControlState {
         // RFC 5681: IW = min(4*MSS, max(2*MSS, 4380 bytes))
         let mss = conn_mgmt.mss as u16;
         self.cwnd = core::cmp::min(4 * mss, core::cmp::max(2 * mss, 4380));
-        
+
         // ssthresh is already initialized to 0xFFFF in TcpConnectionState::new()
-        
+
         Ok(())
     }
 
@@ -791,12 +968,18 @@ impl CongestionControlState {
 
     /// ANY → CLOSED: Reset congestion control state
     pub fn on_rst(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Clear cwnd on RST")
+        // Reset congestion control state
+        self.cwnd = 0;
+
+        Ok(())
     }
 
     /// ANY → CLOSED: Reset congestion control state
     pub fn on_abort(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Clear cwnd on abort")
+        // Reset congestion control state
+        self.cwnd = 0;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------

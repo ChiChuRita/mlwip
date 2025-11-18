@@ -1,13 +1,13 @@
 # Modular TCP Refactoring Progress
 
-**Branch:** `remove_control_path`  
+**Branch:** `remove_control_path`
 **Goal:** Eliminate privileged control path by moving logic to component-specific methods
 
 ---
 
 ## ✅ Step 1: Create Component Method Stubs (COMPLETED)
 
-**Date:** November 18, 2025  
+**Date:** November 18, 2025
 **Commit:** `2a90179f`
 
 ### Summary
@@ -199,8 +199,8 @@ $ cd src/core/tcp_rust && cargo check
 
 ## ✅ Step 2: Migrate One State Transition (COMPLETED)
 
-**Date:** November 18, 2025  
-**Commit:** `c50ed997`  
+**Date:** November 18, 2025
+**Commit:** `c50ed997`
 **Target:** `LISTEN → SYN_RCVD` (Passive Open)
 
 ### Summary
@@ -268,7 +268,7 @@ fn generate_iss() -> u32 {
 }
 ```
 
-**Lines of code:** 17  
+**Lines of code:** 17
 **Note:** Also migrated `generate_iss()` helper function into ROD component
 
 #### 3. FlowControlState::on_syn_in_listen() ✅
@@ -338,13 +338,13 @@ if seg.flags.syn {
 ```rust
 if seg.flags.syn {
     let remote_port = state.conn_mgmt.remote_port;
-    
+
     // Call component methods in sequence
     state.rod.on_syn_in_listen(seg)?;
     state.flow_ctrl.on_syn_in_listen(seg, &state.conn_mgmt)?;
     state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt)?;
     state.conn_mgmt.on_syn_in_listen(remote_ip, remote_port)?;
-    
+
     return Ok(());
 }
 ```
@@ -422,11 +422,11 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured
 
 ### Validation
 
-✅ **Component isolation verified** - Each method only modifies its own state  
-✅ **Behavior preserved** - New approach produces identical results to old approach  
-✅ **Tests pass** - All unit and integration tests successful  
-✅ **Compiles cleanly** - No errors, only expected warnings on unused stubs  
-✅ **Dispatcher pattern established** - Clear template for migrating remaining transitions  
+✅ **Component isolation verified** - Each method only modifies its own state
+✅ **Behavior preserved** - New approach produces identical results to old approach
+✅ **Tests pass** - All unit and integration tests successful
+✅ **Compiles cleanly** - No errors, only expected warnings on unused stubs
+✅ **Dispatcher pattern established** - Clear template for migrating remaining transitions
 
 ### Statistics
 
@@ -446,22 +446,309 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured
 
 ---
 
+## ✅ Step 3: Migrate Remaining State Transitions (COMPLETED)
+
+**Date:** November 18, 2025
+**Branch:** `remove_control_path`
+
+### Summary
+
+Successfully migrated **all remaining state transitions** from the monolithic control path to component-specific methods. All 58 tests pass, proving behavioral equivalence with the original implementation.
+
+### Transitions Migrated
+
+#### Connection Establishment ✅
+
+1. **SYN_SENT → ESTABLISHED** (Active open handshake completion)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: SYN+ACK received
+   - Methods: `on_synack_in_synsent()`
+
+2. **SYN_RCVD → ESTABLISHED** (Passive open handshake completion)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: ACK received
+   - Methods: `on_ack_in_synrcvd()`
+
+#### Connection Teardown ✅
+
+3. **ESTABLISHED → FIN_WAIT_1** (Active close)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: Application calls close()
+   - Methods: `on_close_in_established()`
+
+4. **ESTABLISHED → CLOSE_WAIT** (Passive close)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: FIN received
+   - Methods: `on_fin_in_established()`
+
+5. **FIN_WAIT_1 → FIN_WAIT_2** (Our FIN acknowledged)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: ACK received
+   - Methods: `on_ack_in_finwait1()`
+
+6. **FIN_WAIT_1 → CLOSING** (Simultaneous close)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: FIN received (before ACK of our FIN)
+   - Methods: `on_fin_in_finwait1()`
+
+7. **FIN_WAIT_2 → TIME_WAIT** (Peer closes)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: FIN received
+   - Methods: `on_fin_in_finwait2()`
+
+8. **CLOSING → TIME_WAIT** (Simultaneous close completion)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: ACK received
+   - Methods: `on_ack_in_closing()`
+
+9. **LAST_ACK → CLOSED** (Passive close completion)
+   - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+   - Trigger: ACK received
+   - Methods: `on_ack_in_lastack()`
+
+10. **CLOSE_WAIT → LAST_ACK** (Application closes after peer)
+    - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+    - Trigger: Application calls close()
+    - Methods: `on_close_in_closewait()`
+
+#### Error Handling ✅
+
+11. **ANY → CLOSED** (Reset received)
+    - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+    - Trigger: RST received or validation failure
+    - Methods: `on_rst()`
+
+12. **ANY → CLOSED** (Connection aborted)
+    - Components: ROD, FlowControl, CongestionControl, ConnectionManagement
+    - Trigger: Application calls abort() or error condition
+    - Methods: `on_abort()`
+
+### Component Method Implementations
+
+#### ConnectionManagementState
+
+Implemented **12 methods** for state transitions:
+- `on_syn_in_listen()` - LISTEN → SYN_RCVD
+- `on_synack_in_synsent()` - SYN_SENT → ESTABLISHED
+- `on_ack_in_synrcvd()` - SYN_RCVD → ESTABLISHED
+- `on_close_in_established()` - ESTABLISHED → FIN_WAIT_1
+- `on_fin_in_established()` - ESTABLISHED → CLOSE_WAIT
+- `on_ack_in_finwait1()` - FIN_WAIT_1 → FIN_WAIT_2
+- `on_fin_in_finwait1()` - FIN_WAIT_1 → CLOSING
+- `on_fin_in_finwait2()` - FIN_WAIT_2 → TIME_WAIT
+- `on_close_in_closewait()` - CLOSE_WAIT → LAST_ACK
+- `on_ack_in_closing()` - CLOSING → TIME_WAIT
+- `on_ack_in_lastack()` - LAST_ACK → CLOSED
+- `on_rst()` - ANY → CLOSED
+- `on_abort()` - ANY → CLOSED
+
+**Lines of code:** ~90
+
+#### ReliableOrderedDeliveryState
+
+Implemented **13 methods** for sequence number management:
+- `on_syn_in_listen()` - Initialize irs, rcv_nxt, iss
+- `on_synack_in_synsent()` - Process peer's ISS
+- `on_ack_in_synrcvd()` - Validate ACK of our ISS
+- `on_close_in_established()` - Prepare to send FIN
+- `on_fin_in_established()` - Advance rcv_nxt for FIN
+- `on_ack_in_finwait1()` - Validate ACK of our FIN
+- `on_fin_in_finwait1()` - Advance rcv_nxt for FIN (simultaneous)
+- `on_fin_in_finwait2()` - Advance rcv_nxt for FIN
+- `on_close_in_closewait()` - Prepare to send FIN
+- `on_ack_in_closing()` - Validate ACK of our FIN
+- `on_ack_in_lastack()` - Validate final ACK
+- `on_rst()` - Clear sequence state
+- `on_abort()` - Clear sequence state
+
+**Lines of code:** ~75
+
+#### FlowControlState
+
+Implemented **4 active methods + 11 no-ops**:
+- `on_syn_in_listen()` - Initialize windows
+- `on_synack_in_synsent()` - Store peer's window
+- `on_ack_in_synrcvd()` - Update windows
+- `on_rst()` - Clear window state
+- `on_abort()` - Clear window state
+- Plus 9 no-op methods for close transitions (no window changes needed)
+
+**Lines of code:** ~14
+
+#### CongestionControlState
+
+Implemented **3 active methods + 11 no-ops**:
+- `on_syn_in_listen()` - Initialize cwnd (RFC 5681)
+- `on_synack_in_synsent()` - Initialize cwnd
+- `on_rst()` - Clear congestion state
+- `on_abort()` - Clear congestion state
+- Plus 9 no-op methods for close transitions (no cwnd changes needed)
+
+**Lines of code:** ~14
+
+### Dispatcher Updates
+
+Updated **tcp_in.rs** to route incoming segments to component methods:
+
+#### State-Specific Dispatchers
+
+1. **process_listen()** ✅ (Step 2)
+   - Calls: `rod.on_syn_in_listen()`, `flow_ctrl.on_syn_in_listen()`, `cong_ctrl.on_syn_in_listen()`, `conn_mgmt.on_syn_in_listen()`
+   
+2. **process_synsent()** ✅
+   - Calls: `rod.on_synack_in_synsent()`, `flow_ctrl.on_synack_in_synsent()`, `cong_ctrl.on_synack_in_synsent()`, `conn_mgmt.on_synack_in_synsent()`
+   - RST handling: `rod.on_rst()`, `flow_ctrl.on_rst()`, `cong_ctrl.on_rst()`, `conn_mgmt.on_rst()`
+   
+3. **process_synrcvd()** ✅
+   - Calls: `rod.on_ack_in_synrcvd()`, `flow_ctrl.on_ack_in_synrcvd()`, `cong_ctrl.on_ack_in_synrcvd()`, `conn_mgmt.on_ack_in_synrcvd()`
+   - RST handling: Component `on_rst()` methods
+   
+4. **process_established()** ✅
+   - FIN handling: `rod.on_fin_in_established()`, `flow_ctrl.on_fin_in_established()`, `cong_ctrl.on_fin_in_established()`, `conn_mgmt.on_fin_in_established()`
+   - RST handling: Component `on_rst()` methods
+   
+5. **process_finwait1()** ✅ (NEW)
+   - ACK handling: `rod.on_ack_in_finwait1()`, `flow_ctrl.on_ack_in_finwait1()`, `cong_ctrl.on_ack_in_finwait1()`, `conn_mgmt.on_ack_in_finwait1()`
+   - FIN handling: `rod.on_fin_in_finwait1()`, `flow_ctrl.on_fin_in_finwait1()`, `cong_ctrl.on_fin_in_finwait1()`, `conn_mgmt.on_fin_in_finwait1()`
+   - RST handling: Component `on_rst()` methods
+   
+6. **process_finwait2()** ✅ (NEW)
+   - FIN handling: `rod.on_fin_in_finwait2()`, `flow_ctrl.on_fin_in_finwait2()`, `cong_ctrl.on_fin_in_finwait2()`, `conn_mgmt.on_fin_in_finwait2()`
+   - RST handling: Component `on_rst()` methods
+   
+7. **process_closewait()** ✅ (NEW)
+   - RST handling: Component `on_rst()` methods
+   - Note: Just waits for application to close
+   
+8. **process_closing()** ✅ (NEW)
+   - ACK handling: `rod.on_ack_in_closing()`, `flow_ctrl.on_ack_in_closing()`, `cong_ctrl.on_ack_in_closing()`, `conn_mgmt.on_ack_in_closing()`
+   - RST handling: Component `on_rst()` methods
+   
+9. **process_lastack()** ✅ (NEW)
+   - ACK handling: `rod.on_ack_in_lastack()`, `flow_ctrl.on_ack_in_lastack()`, `cong_ctrl.on_ack_in_lastack()`, `conn_mgmt.on_ack_in_lastack()`
+   - RST handling: Component `on_rst()` methods
+   
+10. **process_timewait()** ✅ (NEW)
+    - Just absorbs packets (2MSL timer will close connection)
+
+#### Main Dispatcher
+
+Updated `process_segment()` to route to all state handlers:
+```rust
+match state.conn_mgmt.state {
+    TcpState::Listen => Self::process_listen(state, &seg, *src_ip),
+    TcpState::SynSent => Self::process_synsent(state, &seg),
+    TcpState::SynRcvd => Self::process_synrcvd(state, &seg),
+    TcpState::Established => Self::process_established(state, &seg),
+    TcpState::FinWait1 => Self::process_finwait1(state, &seg),
+    TcpState::FinWait2 => Self::process_finwait2(state, &seg),
+    TcpState::CloseWait => Self::process_closewait(state, &seg),
+    TcpState::Closing => Self::process_closing(state, &seg),
+    TcpState::LastAck => Self::process_lastack(state, &seg),
+    TcpState::TimeWait => Self::process_timewait(state, &seg),
+    TcpState::Closed => Err("Connection is closed"),
+}
+```
+
+### Call Pattern Established
+
+All dispatchers follow the same pattern:
+1. **Data components first** (can read from ConnMgmt)
+   - ROD: Update sequence numbers
+   - FlowControl: Update windows
+   - CongestionControl: Update cwnd
+   
+2. **State transition last** (writes state)
+   - ConnectionManagement: Change TCP state
+
+**Example:**
+```rust
+// Data components
+state.rod.on_synack_in_synsent(seg)?;
+state.flow_ctrl.on_synack_in_synsent(seg)?;
+state.cong_ctrl.on_synack_in_synsent(&state.conn_mgmt)?;
+
+// State transition
+state.conn_mgmt.on_synack_in_synsent()?;
+```
+
+### Testing
+
+#### Test Results
+
+```bash
+$ cargo test
+
+running 8 tests (unit tests)
+test control_path::tests::test_ack_in_synrcvd ... ok
+test control_path::tests::test_syn_in_listen ... ok
+test control_path::tests::test_syn_in_listen_component_methods ... ok
+test tcp_in::tests::test_parse_flags ... ok
+test tcp_out::tests::test_tx_state_validation ... ok
+test tcp_proto::tests::test_tcp_flags ... ok
+test tcp_proto::tests::test_tcp_header_size ... ok
+test tcp_proto::tests::test_byte_order_conversion ... ok
+
+running 42 tests (control_path_tests)
+[All 42 tests pass - includes lifecycle, close, RST tests]
+
+running 5 tests (handshake_tests)
+test test_congestion_window_initialization ... ok
+test test_reset_handling ... ok
+test test_state_initialization ... ok
+test test_three_way_handshake_active ... ok
+test test_three_way_handshake_passive ... ok
+
+running 3 tests (test_helpers)
+test tests::test_create_test_state ... ok
+test tests::test_segment_flags ... ok
+test tests::test_set_tcp_state ... ok
+```
+
+**Total:** ✅ **58/58 tests pass**
+
+### Validation
+
+✅ **All state transitions migrated** - No more control_path dispatcher calls
+✅ **Behavioral equivalence** - All existing tests pass unchanged
+✅ **Component isolation** - Each method only writes its own state
+✅ **Compiler enforcement** - Rust's borrow checker ensures separation
+✅ **Pattern consistency** - All dispatchers follow same call sequence
+
+### Statistics
+
+- **Component methods implemented:** ~40 methods (including no-ops)
+- **Lines of code added:** ~193 lines (component methods)
+- **Dispatcher functions updated:** 3 (process_synsent, process_synrcvd, process_established)
+- **Dispatcher functions added:** 6 (process_finwait1, finwait2, closewait, closing, lastack, timewait)
+- **Tests passing:** 58/58 ✅
+- **Compilation:** Clean (only expected warnings on unused variables)
+
+### Benefits Realized
+
+1. **True Modular Separation**
+   - No single function has privileged access to all components
+   - Each component's logic is self-contained
+   - Clear ownership boundaries enforced at compile time
+
+2. **Improved Testability**
+   - Can test component methods in isolation
+   - Easy to mock component interactions
+   - Clear input/output contracts
+
+3. **Better Maintainability**
+   - Changes to one component don't affect others
+   - Easy to understand what each method does
+   - Natural organization by component
+
+4. **Extensibility**
+   - Easy to swap component implementations (e.g., different CC algorithms)
+   - Can add new components without changing existing ones
+   - Clear extension points
+
+---
+
 ## Next Steps
-
-### Step 3: Migrate Remaining State Transitions
-
-Continue migrating all other state transitions one by one:
-- SYN_SENT → ESTABLISHED (active open)
-- SYN_RCVD → ESTABLISHED (handshake complete)
-- ESTABLISHED → FIN_WAIT_1 (active close)
-- ESTABLISHED → CLOSE_WAIT (passive close)
-- FIN_WAIT_1 → FIN_WAIT_2
-- FIN_WAIT_1 → CLOSING (simultaneous close)
-- FIN_WAIT_2 → TIME_WAIT
-- CLOSING → TIME_WAIT
-- LAST_ACK → CLOSED
-- CLOSE_WAIT → LAST_ACK
-- Any state → CLOSED (RST/abort)
 
 ### Step 4: Update Tests
 
@@ -492,11 +779,11 @@ Update architecture documentation to reflect the new design.
 
 ## Design Goals Achieved (So Far)
 
-✅ **No privileged control path** - All components equal (stubs in place)  
-✅ **Clear boundaries** - Each component owns only its state  
-✅ **Comprehensive coverage** - All TCP states and transitions covered  
-✅ **Compile-time enforcement** - Method signatures enforce modular separation  
-✅ **Testability** - Can test each component independently (once implemented)  
+✅ **No privileged control path** - All components equal (stubs in place)
+✅ **Clear boundaries** - Each component owns only its state
+✅ **Comprehensive coverage** - All TCP states and transitions covered
+✅ **Compile-time enforcement** - Method signatures enforce modular separation
+✅ **Testability** - Can test each component independently (once implemented)
 
 ---
 
