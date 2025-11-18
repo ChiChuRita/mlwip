@@ -7,16 +7,22 @@ mod tcp;
 pub use ffi::*;
 
 use std::ffi::c_void;
-use std::ptr::null_mut;
+use std::ptr;
 
 #[no_mangle]
-pub static mut tcp_active_pcbs: *mut c_void = null_mut();
+pub static mut tcp_ticks: u32 = 0;
 
 #[no_mangle]
-pub static mut tcp_tw_pcbs: *mut c_void = null_mut();
+pub static mut tcp_active_pcbs: *mut c_void = ptr::null_mut();
 
 #[no_mangle]
-pub static mut tcp_bound_pcbs: *mut c_void = null_mut();
+pub static mut tcp_tw_pcbs: *mut c_void = ptr::null_mut();
+
+#[no_mangle]
+pub static mut tcp_bound_pcbs: *mut c_void = ptr::null_mut();
+
+#[no_mangle]
+pub static mut tcp_listen_pcbs: *mut c_void = ptr::null_mut();
 
 #[no_mangle]
 pub unsafe extern "C" fn tcp_free_ooseq(_pcb: *mut c_void) {}
@@ -164,7 +170,8 @@ pub unsafe extern "C" fn tcp_listen_with_backlog_rust(
     pcb: *mut ffi::tcp_pcb,
     backlog: u8,
 ) -> *mut ffi::tcp_pcb {
-    tcp::tcp_listen_with_backlog(pcb, backlog)
+    // Using the _and_err variant with null error pointer
+    tcp::tcp_listen_with_backlog_and_err(pcb, backlog, ptr::null_mut())
 }
 
 #[no_mangle]
@@ -234,4 +241,69 @@ pub unsafe extern "C" fn tcp_ext_arg_get_rust(
     id: u8,
 ) -> *mut c_void {
     tcp::tcp_ext_arg_get(pcb, id)
+}
+
+// Accessors for the "Opaque Handle" architecture
+// These allow C code to read state from Rust without touching the struct fields directly
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_get_state_rust(pcb: *const ffi::tcp_pcb) -> u8 {
+    tcp::tcp_get_state(pcb)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_get_sndbuf_rust(pcb: *const ffi::tcp_pcb) -> u16 {
+    tcp::tcp_get_sndbuf(pcb)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_get_sndqueuelen_rust(pcb: *const ffi::tcp_pcb) -> u16 {
+    tcp::tcp_get_sndqueuelen(pcb)
+}
+
+// Flag manipulation stubs (C writes)
+#[no_mangle]
+pub unsafe extern "C" fn tcp_set_flags_rust(pcb: *mut ffi::tcp_pcb, set_flags: u16) {
+    tcp::tcp_set_flags(pcb, set_flags);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_clear_flags_rust(pcb: *mut ffi::tcp_pcb, clr_flags: u16) {
+    tcp::tcp_clear_flags(pcb, clr_flags);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_is_flag_set_rust(pcb: *const ffi::tcp_pcb, flag: u16) -> i32 {
+    tcp::tcp_is_flag_set(pcb, flag)
+}
+
+// Keep-Alive setters/getters (C writes)
+#[no_mangle]
+pub unsafe extern "C" fn tcp_set_keep_idle_rust(pcb: *mut ffi::tcp_pcb, val: u32) {
+    tcp::tcp_set_keep_idle(pcb, val);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_set_keep_intvl_rust(pcb: *mut ffi::tcp_pcb, val: u32) {
+    tcp::tcp_set_keep_intvl(pcb, val);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_set_keep_cnt_rust(pcb: *mut ffi::tcp_pcb, val: u32) {
+    tcp::tcp_set_keep_cnt(pcb, val);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_get_keep_idle_rust(pcb: *const ffi::tcp_pcb) -> u32 {
+    tcp::tcp_get_keep_idle(pcb)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_get_keep_intvl_rust(pcb: *const ffi::tcp_pcb) -> u32 {
+    tcp::tcp_get_keep_intvl(pcb)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn tcp_get_keep_cnt_rust(pcb: *const ffi::tcp_pcb) -> u32 {
+    tcp::tcp_get_keep_cnt(pcb)
 }
