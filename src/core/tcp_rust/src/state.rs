@@ -905,7 +905,10 @@ impl CongestionControlState {
         &mut self,
         conn_mgmt: &ConnectionManagementState,
     ) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_synack_in_synsent")
+        // RFC 5681: IW = min(4*MSS, max(2*MSS, 4380 bytes))
+        let mss = conn_mgmt.mss as u16;
+        self.cwnd = core::cmp::min(4 * mss, core::cmp::max(2 * mss, 4380));
+        Ok(())
     }
 
     /// SYN_RCVD → ESTABLISHED: No congestion control change

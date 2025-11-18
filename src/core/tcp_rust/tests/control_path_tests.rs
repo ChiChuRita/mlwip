@@ -55,12 +55,16 @@ fn test_tcp_connect_active_open() {
     };
 
     // Process SYN-ACK (should transition to ESTABLISHED)
-    let result = ControlPath::process_synack_in_synsent(
-        &mut state,
-        &synack_seg,
-    );
-
+    // Use component methods
+    let result = state.rod.on_synack_in_synsent(&synack_seg);
     assert!(result.is_ok());
+    let result = state.flow_ctrl.on_synack_in_synsent(&synack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_synack_in_synsent(&state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_synack_in_synsent();
+    assert!(result.is_ok());
+
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
     assert_eq!(state.rod.rcv_nxt, 12346); // seqno + 1
 }
@@ -104,8 +108,14 @@ fn test_tcp_active_close() {
         payload_len: 0,
     };
 
-    // Process ACK in FIN_WAIT_1
-    let result = ControlPath::process_ack_in_finwait1(&mut state, &ack_seg);
+    // Process ACK in FIN_WAIT_1 - use component methods
+    let result = state.rod.on_ack_in_finwait1(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_ack_in_finwait1(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_ack_in_finwait1(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_ack_in_finwait1();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::FinWait2);
 
@@ -126,8 +136,14 @@ fn test_tcp_active_close() {
         payload_len: 0,
     };
 
-    // Process FIN in FIN_WAIT_2
-    let result = ControlPath::process_fin_in_finwait2(&mut state, &fin_seg);
+    // Process FIN in FIN_WAIT_2 - use component methods
+    let result = state.rod.on_fin_in_finwait2(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_fin_in_finwait2(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_fin_in_finwait2(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_fin_in_finwait2();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::TimeWait);
 
@@ -173,8 +189,14 @@ fn test_tcp_simultaneous_close() {
         payload_len: 0,
     };
 
-    // Process FIN in FIN_WAIT_1 (crossing FINs)
-    let result = ControlPath::process_fin_in_finwait1(&mut state, &fin_seg);
+    // Process FIN in FIN_WAIT_1 (crossing FINs) - use component methods
+    let result = state.rod.on_fin_in_finwait1(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_fin_in_finwait1(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_fin_in_finwait1(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_fin_in_finwait1();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Closing);
 
@@ -195,8 +217,14 @@ fn test_tcp_simultaneous_close() {
         payload_len: 0,
     };
 
-    // Process ACK in CLOSING
-    let result = ControlPath::process_ack_in_closing(&mut state, &ack_seg);
+    // Process ACK in CLOSING - use component methods
+    let result = state.rod.on_ack_in_closing(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_ack_in_closing(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_ack_in_closing(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_ack_in_closing();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::TimeWait);
 }
@@ -342,8 +370,11 @@ fn test_tcp_process_rst_seqno() {
         payload_len: 0,
     };
 
-    // Process RST with correct seqno
-    ControlPath::process_rst(&mut state);
+    // Process RST with correct seqno - use component methods
+    let _ = state.rod.on_rst();
+    let _ = state.flow_ctrl.on_rst();
+    let _ = state.cong_ctrl.on_rst();
+    let _ = state.conn_mgmt.on_rst();
 
     // Connection should be aborted (CLOSED)
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
@@ -377,11 +408,8 @@ fn test_tcp_gen_rst_in_syn_sent_ackseq() {
         payload_len: 0,
     };
 
-    // Should reject and send RST
-    let result = ControlPath::process_synack_in_synsent(
-        &mut state,
-        &bad_synack,
-    );
+    // Should reject and send RST - use component methods
+    let result = state.rod.on_synack_in_synsent(&bad_synack);
 
     assert!(result.is_err());
     // State should remain SYN_SENT or go to CLOSED
@@ -483,9 +511,14 @@ fn test_tcp_receive_rst_syn_rcvd_to_listen() {
         payload_len: 0,
     };
 
-    let result = ControlPath::process_syn_in_listen(
-        &mut state,
-        &syn_seg,
+    // Use component methods
+    let result = state.rod.on_syn_in_listen(&syn_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_syn_in_listen(&syn_seg, &state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_syn_in_listen(
         crate::ffi::ip_addr_t { addr: TEST_REMOTE_IP },
         TEST_REMOTE_PORT,
     );
@@ -548,8 +581,14 @@ fn test_tcp_passive_close() {
         payload_len: 0,
     };
 
-    // Process FIN in ESTABLISHED -> CLOSE_WAIT
-    let result = ControlPath::process_fin_in_established(&mut state, &fin_seg);
+    // Process FIN in ESTABLISHED -> CLOSE_WAIT - use component methods
+    let result = state.rod.on_fin_in_established(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_fin_in_established(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_fin_in_established(&fin_seg);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_fin_in_established();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::CloseWait);
     assert_eq!(state.rod.rcv_nxt, fin_seg.seqno.wrapping_add(1)); // FIN consumed 1 seq
@@ -577,8 +616,14 @@ fn test_tcp_passive_close() {
         payload_len: 0,
     };
 
-    // Process ACK in LAST_ACK -> CLOSED
-    let result = ControlPath::process_ack_in_lastack(&mut state, &ack_seg);
+    // Process ACK in LAST_ACK -> CLOSED - use component methods
+    let result = state.rod.on_ack_in_lastack(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_ack_in_lastack(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_ack_in_lastack(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_ack_in_lastack();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
 }
@@ -795,9 +840,14 @@ fn test_full_server_lifecycle() {
         payload_len: 0,
     };
 
-    let result = ControlPath::process_syn_in_listen(
-        &mut state,
-        &syn_seg,
+    // Use component methods
+    let result = state.rod.on_syn_in_listen(&syn_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_syn_in_listen(&syn_seg, &state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_syn_in_listen(
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
         TEST_REMOTE_PORT,
     );
@@ -821,7 +871,14 @@ fn test_full_server_lifecycle() {
         payload_len: 0,
     };
 
-    let result = ControlPath::process_ack_in_synrcvd(&mut state, &ack_seg);
+    // Use component methods
+    let result = state.rod.on_ack_in_synrcvd(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_ack_in_synrcvd(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_ack_in_synrcvd();
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_ack_in_synrcvd();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
 
@@ -866,7 +923,14 @@ fn test_full_client_lifecycle() {
         payload_len: 0,
     };
 
-    let result = ControlPath::process_synack_in_synsent(&mut state, &synack_seg);
+    // Use component methods
+    let result = state.rod.on_synack_in_synsent(&synack_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_synack_in_synsent(&synack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_synack_in_synsent(&state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_synack_in_synsent();
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
 
@@ -1447,9 +1511,14 @@ fn test_tcp_passive_open_handshake() {
         payload_len: 0,
     };
 
-    let result = ControlPath::process_syn_in_listen(
-        &mut state,
-        &syn_seg,
+    // Use component methods
+    let result = state.rod.on_syn_in_listen(&syn_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_syn_in_listen(&syn_seg, &state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt);
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_syn_in_listen(
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
         TEST_REMOTE_PORT,
     );
@@ -1475,7 +1544,14 @@ fn test_tcp_passive_open_handshake() {
         payload_len: 0,
     };
 
-    let result = ControlPath::process_ack_in_synrcvd(&mut state, &ack_seg);
+    // Use component methods
+    let result = state.rod.on_ack_in_synrcvd(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.flow_ctrl.on_ack_in_synrcvd(&ack_seg);
+    assert!(result.is_ok());
+    let result = state.cong_ctrl.on_ack_in_synrcvd();
+    assert!(result.is_ok());
+    let result = state.conn_mgmt.on_ack_in_synrcvd();
 
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
