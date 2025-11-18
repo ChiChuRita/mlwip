@@ -1,5 +1,5 @@
-   0.041833083s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint: fingerprint error for lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("lwip_tcp_rust", ["staticlib"], "/workspaces/mlwip/src/core/tcp_rust/src/lib.rs", Edition2021) }
-   0.041906875s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `/workspaces/mlwip/src/core/tcp_rust/target/debug/.fingerprint/lwip_tcp_rust-5fad4205766cb888/lib-lwip_tcp_rust`
+   0.047303500s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint: fingerprint error for lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("lwip_tcp_rust", ["staticlib"], "/workspaces/mlwip/src/core/tcp_rust/src/lib.rs", Edition2021) }
+   0.047361667s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `/workspaces/mlwip/src/core/tcp_rust/target/debug/.fingerprint/lwip_tcp_rust-5fad4205766cb888/lib-lwip_tcp_rust`
 
 Caused by:
     No such file or directory (os error 2)
@@ -47,8 +47,8 @@ Stack backtrace:
   27: __libc_start_main
              at ./csu/../csu/libc-start.c:308:16
   28: <unknown>
-   0.113958583s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint: fingerprint error for lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("lwip_tcp_rust", ["staticlib"], "/workspaces/mlwip/src/core/tcp_rust/src/lib.rs", Edition2021) }
-   0.114005833s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `/workspaces/mlwip/src/core/tcp_rust/target/debug/.fingerprint/lwip_tcp_rust-635e118953b81906/test-lib-lwip_tcp_rust`
+   0.106582584s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint: fingerprint error for lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("lwip_tcp_rust", ["staticlib"], "/workspaces/mlwip/src/core/tcp_rust/src/lib.rs", Edition2021) }
+   0.106615584s  INFO prepare_target{force=false package_id=lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust) target="lwip_tcp_rust"}: cargo::core::compiler::fingerprint:     err: failed to read `/workspaces/mlwip/src/core/tcp_rust/target/debug/.fingerprint/lwip_tcp_rust-635e118953b81906/test-lib-lwip_tcp_rust`
 
 Caused by:
     No such file or directory (os error 2)
@@ -97,6 +97,6 @@ Stack backtrace:
              at ./csu/../csu/libc-start.c:308:16
   28: <unknown>
     Checking lwip_tcp_rust v0.1.0 (/workspaces/mlwip/src/core/tcp_rust)
-error: could not compile `lwip_tcp_rust` (lib) due to 3 previous errors
+error: could not compile `lwip_tcp_rust` (lib) due to 1 previous error
 warning: build failed, waiting for other jobs to finish...
-error: could not compile `lwip_tcp_rust` (lib test) due to 3 previous errors
+error: could not compile `lwip_tcp_rust` (lib test) due to 1 previous error
