@@ -4,7 +4,7 @@
 //! For handshake: processes SYN, SYN+ACK, and ACK segments.
 
 use crate::state::TcpConnectionState;
-use crate::control_path::{ControlPath, TcpSegment, TcpFlags};
+use crate::tcp_types::{TcpSegment, TcpFlags};
 use crate::ffi;
 use crate::tcp_proto;
 
@@ -293,7 +293,7 @@ impl TcpRx {
             state.flow_ctrl.on_ack_in_finwait1(seg)?;
             state.cong_ctrl.on_ack_in_finwait1(seg)?;
             state.conn_mgmt.on_ack_in_finwait1()?;
-            
+
             // If FIN is also set, handle it
             if seg.flags.fin {
                 state.rod.on_fin_in_finwait1(seg)?;

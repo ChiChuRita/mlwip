@@ -28,20 +28,20 @@ fn test_three_way_handshake_passive() {
     };
 
     let remote_ip = unsafe { core::mem::zeroed() };
-    
+
     // Use component methods
     let result = state.rod.on_syn_in_listen(&syn_seg);
     assert!(result.is_ok(), "ROD SYN processing failed");
-    
+
     let result = state.flow_ctrl.on_syn_in_listen(&syn_seg, &state.conn_mgmt);
     assert!(result.is_ok(), "FlowControl SYN processing failed");
-    
+
     let result = state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt);
     assert!(result.is_ok(), "CongControl SYN processing failed");
-    
+
     let result = state.conn_mgmt.on_syn_in_listen(remote_ip, 12345);
     assert!(result.is_ok(), "ConnMgmt SYN processing failed");
-    
+
     assert_eq!(state.conn_mgmt.state, TcpState::SynRcvd);
     assert_eq!(state.rod.rcv_nxt, 1001);
 
@@ -65,16 +65,16 @@ fn test_three_way_handshake_passive() {
     // Use component methods
     let result = state.rod.on_ack_in_synrcvd(&ack_seg);
     assert!(result.is_ok(), "ROD ACK processing failed");
-    
+
     let result = state.flow_ctrl.on_ack_in_synrcvd(&ack_seg);
     assert!(result.is_ok(), "FlowControl ACK processing failed");
-    
+
     let result = state.cong_ctrl.on_ack_in_synrcvd();
     assert!(result.is_ok(), "CongControl ACK processing failed");
-    
+
     let result = state.conn_mgmt.on_ack_in_synrcvd();
     assert!(result.is_ok(), "ConnMgmt ACK processing failed");
-    
+
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
 }
 
@@ -107,16 +107,16 @@ fn test_three_way_handshake_active() {
     // Use component methods
     let result = state.rod.on_synack_in_synsent(&synack_seg);
     assert!(result.is_ok(), "ROD SYN+ACK processing failed");
-    
+
     let result = state.flow_ctrl.on_synack_in_synsent(&synack_seg);
     assert!(result.is_ok(), "FlowControl SYN+ACK processing failed");
-    
+
     let result = state.cong_ctrl.on_synack_in_synsent(&state.conn_mgmt);
     assert!(result.is_ok(), "CongControl SYN+ACK processing failed");
-    
+
     let result = state.conn_mgmt.on_synack_in_synsent();
     assert!(result.is_ok(), "ConnMgmt SYN+ACK processing failed");
-    
+
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
     assert_eq!(state.rod.rcv_nxt, 2001);
     assert_eq!(state.rod.lastack, 5001);
@@ -132,7 +132,7 @@ fn test_reset_handling() {
     let _ = state.flow_ctrl.on_rst();
     let _ = state.cong_ctrl.on_rst();
     let _ = state.conn_mgmt.on_rst();
-    
+
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
 }
 
@@ -170,7 +170,7 @@ fn test_congestion_window_initialization() {
     };
 
     let remote_ip = unsafe { core::mem::zeroed() };
-    
+
     // Use component methods
     let _ = state.rod.on_syn_in_listen(&syn_seg);
     let _ = state.flow_ctrl.on_syn_in_listen(&syn_seg, &state.conn_mgmt);

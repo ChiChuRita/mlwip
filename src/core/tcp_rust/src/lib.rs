@@ -28,7 +28,7 @@ pub mod ffi {
     pub struct ip_addr_t {
         pub addr: u32,
     }
-    
+
     pub type netif = u8;
 
     // Re-export our Rust TCP header as the FFI type for tests
@@ -62,14 +62,23 @@ pub mod ffi {
     }
 }
 
+pub mod components;
 pub mod state;
-pub mod control_path;
+pub mod tcp_types;
+pub mod tcp_api;
 pub mod tcp_in;
 pub mod tcp_out;
 
+// Deprecated - kept for test compatibility only
+#[deprecated(note = "Use tcp_types, tcp_api, and components modules instead")]
+pub mod control_path;
+
 // Re-export commonly used types
 pub use state::{TcpState, TcpConnectionState};
-pub use control_path::{
-    TcpFlags, TcpSegment, ControlPath,
+pub use tcp_types::{
+    TcpFlags, TcpSegment,
     RstValidation, AckValidation, InputAction
+};
+pub use tcp_api::{
+    tcp_bind, tcp_listen, tcp_connect, tcp_abort, initiate_close
 };

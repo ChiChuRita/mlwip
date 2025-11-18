@@ -49,8 +49,25 @@ src/core/tcp_rust/
 ├── wrapper.h                     # C headers to generate bindings from
 ├── README.md                     # Comprehensive documentation
 └── src/
-    ├── lib.rs                    # Main Rust library with FFI exports
-    └── ffi.rs                    # FFI types and C function declarations
+    ├── lib.rs                    # Main Rust library with FFI exports and module declarations
+    ├── ffi.rs                    # FFI types and C function declarations
+    ├── tcp_types.rs              # Shared TCP types (TcpFlags, TcpSegment, validation enums)
+    ├── tcp_api.rs                # High-level API functions (bind, listen, connect, etc.)
+    ├── tcp_in.rs                 # Input dispatcher for packet processing
+    ├── tcp_out.rs                # Output handling
+    ├── state.rs                  # TcpState enum and TcpStateData aggregator
+    ├── control_path.rs           # DEPRECATED - Legacy test utilities (will be removed)
+    ├── components/               # Modular component architecture
+    │   ├── mod.rs                # Component exports
+    │   ├── connection_mgmt.rs    # TCP state machine (CLOSED→SYN_SENT→ESTABLISHED→etc.)
+    │   ├── rod.rs                # Reliability, Ordering, Duplication detection
+    │   ├── flow_control.rs       # Receive window management
+    │   └── congestion_control.rs # cwnd, ssthresh management
+    └── tests/
+        ├── unit_tests.rs         # Component unit tests
+        ├── control_path_tests.rs # State machine integration tests (42 tests)
+        ├── handshake_tests.rs    # Connection setup/teardown tests
+        └── test_helpers.rs       # Test utilities
 ```
 
 ### New C Wrapper
@@ -219,20 +236,33 @@ cd test_build && ctest
 - [x] Build system working end-to-end
 - [x] All TCP API entry points defined
 - [x] Documentation and README
+- [x] **Modular component architecture implemented**
+- [x] **Connection management state machine** (CLOSED→SYN_SENT→ESTABLISHED→CLOSE_WAIT→etc.)
+- [x] **ROD component** (Reliability, Ordering, Duplication detection)
+- [x] **Flow control component** (Receive window management)
+- [x] **Congestion control component** (cwnd, ssthresh management)
+- [x] **Eliminated privileged control path** (no single function writes to multiple components)
+- [x] **58 unit/integration tests** (all passing)
+- [x] **tcp_types module** (shared types: TcpFlags, TcpSegment, validation enums)
+- [x] **tcp_api module** (API functions: bind, listen, connect, close, abort)
 
-### 🔄 TODO (Next Steps)
+### 🔄 In Progress
 
-- [ ] Implement actual TCP state machine
-- [ ] Port packet processing logic from tcp_in.c
-- [ ] Port packet output logic from tcp_out.c
-- [ ] Implement modular components:
-  - [ ] Connection management
-  - [ ] Reliability (retransmission, ACK)
-  - [ ] Flow control (window management)
-  - [ ] Congestion control (cwnd, ssthresh)
-- [ ] Add comprehensive unit tests
-- [ ] Run lwIP TCP test suite
-- [ ] Performance benchmarking
+- [ ] Port full packet processing logic from tcp_in.c (input dispatcher skeleton exists)
+- [ ] Port packet output logic from tcp_out.c (skeleton exists)
+- [ ] Implement data transfer logic (send/receive)
+- [ ] Add buffer management for data transfer
+- [ ] Implement retransmission timers
+- [ ] Complete RFC 5961 security checks
+- [ ] Add proper ISS generation (RFC 6528)
+
+### 📋 TODO (Future Enhancements)
+
+- [ ] Run full lwIP TCP test suite
+- [ ] Performance benchmarking vs C implementation
+- [ ] Remove deprecated control_path.rs (migrate remaining test utilities)
+- [ ] Optimize hot paths with profiling
+- [ ] Add more property-based tests
 
 ## Example: Adding New Functionality
 
@@ -330,17 +360,41 @@ mlwip/
 4. **Incremental migration** - Can port one module at a time
 5. **Tooling matters** - `bindgen` automates the tedious parts
 
+## Refactoring Complete (November 2024)
+
+### Modular Architecture Achievement ✅
+
+Successfully eliminated the privileged control path through 7-step refactoring:
+
+1. **Step 1:** Created 75 component method stubs across 4 components
+2. **Step 2:** Proof-of-concept migration (LISTEN → SYN_RCVD transition)
+3. **Step 3:** Migrated all 12 state transitions to component methods
+4. **Step 4:** Updated 58 tests to use component methods
+5. **Step 5:** Reorganized monolithic code into modular `components/` directory
+6. **Step 6:** Extracted shared types (`tcp_types.rs`) and API (`tcp_api.rs`)
+7. **Step 7:** Updated architecture documentation
+
+**Result:** 
+- ✅ Five disjoint components with clear ownership boundaries
+- ✅ No single function writes to multiple components
+- ✅ Each component owns its state and methods
+- ✅ 58/58 tests passing
+- ✅ Clean modular architecture
+
+See `src/core/tcp_rust/REFACTORING_COMPLETE.md` for detailed summary.
+
 ## Next Steps
 
 To continue development:
 
-1. **Implement state machine** - Start with CLOSED→LISTEN→SYN_RCVD→ESTABLISHED
-2. **Add packet parsing** - Read TCP header fields in Rust
-3. **Implement ACK logic** - Track sequence numbers and acknowledgments
-4. **Port modular components** - Use the existing tcp_pcb.h module structure
-5. **Test incrementally** - Verify each feature as it's added
+1. **Port data transfer logic** - Implement send/receive with buffer management
+2. **Implement retransmission** - Add retransmission timers and logic to ROD component
+3. **Complete RFC 5961 checks** - Security validations for RST/ACK
+4. **Add ISS generation** - Proper RFC 6528 implementation
+5. **Performance optimization** - Profile and optimize hot paths
 
 ---
 
 **Status:** ✅ **FFI Integration Complete and Working**
-**Next:** Implement actual TCP protocol logic in Rust
+**Status:** ✅ **Modular Component Architecture Complete**
+**Next:** Port data transfer logic and implement retransmission timers

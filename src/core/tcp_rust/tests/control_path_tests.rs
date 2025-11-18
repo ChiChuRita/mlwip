@@ -6,10 +6,12 @@
 mod test_helpers;
 
 use test_helpers::*;
-use lwip_tcp_rust::control_path::{
-    ControlPath, TcpFlags, TcpSegment,
-    RstValidation, AckValidation, InputAction
+use lwip_tcp_rust::{
+    TcpFlags, TcpSegment,
+    RstValidation, AckValidation, InputAction,
+    tcp_bind, tcp_listen, tcp_connect, tcp_abort, initiate_close
 };
+use lwip_tcp_rust::control_path::ControlPath;  // Legacy test functions
 use lwip_tcp_rust::state::{TcpConnectionState, TcpState};
 use lwip_tcp_rust::tcp_proto;
 use lwip_tcp_rust::ffi;
@@ -86,7 +88,7 @@ fn test_tcp_active_close() {
     );
 
     // Close from ESTABLISHED should transition to FIN_WAIT_1
-    let result = ControlPath::initiate_close(&mut state);
+    let result = initiate_close(&mut state);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true); // Should send FIN
     assert_eq!(state.conn_mgmt.state, TcpState::FinWait1);
@@ -168,7 +170,7 @@ fn test_tcp_simultaneous_close() {
     );
 
     // Both sides send FIN -> FIN_WAIT_1
-    let result = ControlPath::initiate_close(&mut state);
+    let result = initiate_close(&mut state);
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::FinWait1);
 
@@ -594,7 +596,7 @@ fn test_tcp_passive_close() {
     assert_eq!(state.rod.rcv_nxt, fin_seg.seqno.wrapping_add(1)); // FIN consumed 1 seq
 
     // Application calls tcp_close() -> LAST_ACK
-    let result = ControlPath::initiate_close(&mut state);
+    let result = initiate_close(&mut state);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true); // Should send FIN
     assert_eq!(state.conn_mgmt.state, TcpState::LastAck);
@@ -638,7 +640,7 @@ fn test_tcp_bind_success() {
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
 
     // Bind to specific port
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 8080);
     assert_eq!(state.conn_mgmt.local_ip.addr, TEST_LOCAL_IP);
@@ -651,7 +653,7 @@ fn test_tcp_bind_wrong_state() {
     state.conn_mgmt.state = TcpState::Established;
 
     // Cannot bind in non-CLOSED state
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Can only bind in CLOSED state");
 }
@@ -661,7 +663,7 @@ fn test_tcp_bind_port_zero() {
     let mut state = create_test_state();
 
     // Port 0 not yet supported (needs port allocation)
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 0);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 0);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Port 0 not yet supported - provide explicit port");
 }
@@ -675,11 +677,11 @@ fn test_tcp_listen_success() {
     let mut state = create_test_state();
 
     // Must bind first
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
     assert!(result.is_ok());
 
     // Now listen
-    let result = ControlPath::tcp_listen(&mut state);
+    let result = tcp_listen(&mut state);
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Listen);
 }
@@ -691,7 +693,7 @@ fn test_tcp_listen_without_bind() {
     state.conn_mgmt.state = TcpState::Closed;
 
     // Cannot listen without binding to port
-    let result = ControlPath::tcp_listen(&mut state);
+    let result = tcp_listen(&mut state);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Must bind to port before listening");
 }
@@ -703,7 +705,7 @@ fn test_tcp_listen_wrong_state() {
     state.conn_mgmt.local_port = 8080;
 
     // Cannot listen from non-CLOSED state
-    let result = ControlPath::tcp_listen(&mut state);
+    let result = tcp_listen(&mut state);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), "Can only listen from CLOSED state");
 }
@@ -718,11 +720,11 @@ fn test_tcp_connect_success() {
     let mut state = create_test_state();
 
     // Bind to local port first
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 12345);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 12345);
     assert!(result.is_ok());
 
     // Connect to remote
-    let result = ControlPath::tcp_connect(
+    let result = tcp_connect(
         &mut state,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
         80,
@@ -749,7 +751,7 @@ fn test_tcp_connect_wrong_state() {
     state.conn_mgmt.local_port = 12345;
 
     // Cannot connect from non-CLOSED state
-    let result = ControlPath::tcp_connect(
+    let result = tcp_connect(
         &mut state,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
         80,
@@ -775,7 +777,7 @@ fn test_tcp_abort_established() {
     );
 
     // Abort should send RST
-    let result = ControlPath::tcp_abort(&mut state);
+    let result = tcp_abort(&mut state);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true); // Should send RST
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
@@ -787,7 +789,7 @@ fn test_tcp_abort_listen() {
     state.conn_mgmt.state = TcpState::Listen;
 
     // Abort from LISTEN doesn't need RST
-    let result = ControlPath::tcp_abort(&mut state);
+    let result = tcp_abort(&mut state);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false); // No RST needed
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
@@ -799,7 +801,7 @@ fn test_tcp_abort_closed() {
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
 
     // Abort already closed connection
-    let result = ControlPath::tcp_abort(&mut state);
+    let result = tcp_abort(&mut state);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false); // No RST needed
     assert_eq!(state.conn_mgmt.state, TcpState::Closed);
@@ -815,11 +817,11 @@ fn test_full_server_lifecycle() {
     let mut state = create_test_state();
 
     // 1. Bind
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 8080);
     assert!(result.is_ok());
 
     // 2. Listen
-    let result = ControlPath::tcp_listen(&mut state);
+    let result = tcp_listen(&mut state);
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::Listen);
 
@@ -883,7 +885,7 @@ fn test_full_server_lifecycle() {
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
 
     // 5. Close
-    let result = ControlPath::initiate_close(&mut state);
+    let result = initiate_close(&mut state);
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::FinWait1);
 }
@@ -894,11 +896,11 @@ fn test_full_client_lifecycle() {
     let mut state = create_test_state();
 
     // 1. Bind
-    let result = ControlPath::tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 12345);
+    let result = tcp_bind(&mut state, ffi::ip_addr_t { addr: TEST_LOCAL_IP }, 12345);
     assert!(result.is_ok());
 
     // 2. Connect -> SYN_SENT
-    let result = ControlPath::tcp_connect(
+    let result = tcp_connect(
         &mut state,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
         80,
@@ -935,7 +937,7 @@ fn test_full_client_lifecycle() {
     assert_eq!(state.conn_mgmt.state, TcpState::Established);
 
     // 4. Close
-    let result = ControlPath::initiate_close(&mut state);
+    let result = initiate_close(&mut state);
     assert!(result.is_ok());
     assert_eq!(state.conn_mgmt.state, TcpState::FinWait1);
 }

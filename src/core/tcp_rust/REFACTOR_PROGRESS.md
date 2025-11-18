@@ -594,40 +594,40 @@ Updated **tcp_in.rs** to route incoming segments to component methods:
 
 1. **process_listen()** ✅ (Step 2)
    - Calls: `rod.on_syn_in_listen()`, `flow_ctrl.on_syn_in_listen()`, `cong_ctrl.on_syn_in_listen()`, `conn_mgmt.on_syn_in_listen()`
-   
+
 2. **process_synsent()** ✅
    - Calls: `rod.on_synack_in_synsent()`, `flow_ctrl.on_synack_in_synsent()`, `cong_ctrl.on_synack_in_synsent()`, `conn_mgmt.on_synack_in_synsent()`
    - RST handling: `rod.on_rst()`, `flow_ctrl.on_rst()`, `cong_ctrl.on_rst()`, `conn_mgmt.on_rst()`
-   
+
 3. **process_synrcvd()** ✅
    - Calls: `rod.on_ack_in_synrcvd()`, `flow_ctrl.on_ack_in_synrcvd()`, `cong_ctrl.on_ack_in_synrcvd()`, `conn_mgmt.on_ack_in_synrcvd()`
    - RST handling: Component `on_rst()` methods
-   
+
 4. **process_established()** ✅
    - FIN handling: `rod.on_fin_in_established()`, `flow_ctrl.on_fin_in_established()`, `cong_ctrl.on_fin_in_established()`, `conn_mgmt.on_fin_in_established()`
    - RST handling: Component `on_rst()` methods
-   
+
 5. **process_finwait1()** ✅ (NEW)
    - ACK handling: `rod.on_ack_in_finwait1()`, `flow_ctrl.on_ack_in_finwait1()`, `cong_ctrl.on_ack_in_finwait1()`, `conn_mgmt.on_ack_in_finwait1()`
    - FIN handling: `rod.on_fin_in_finwait1()`, `flow_ctrl.on_fin_in_finwait1()`, `cong_ctrl.on_fin_in_finwait1()`, `conn_mgmt.on_fin_in_finwait1()`
    - RST handling: Component `on_rst()` methods
-   
+
 6. **process_finwait2()** ✅ (NEW)
    - FIN handling: `rod.on_fin_in_finwait2()`, `flow_ctrl.on_fin_in_finwait2()`, `cong_ctrl.on_fin_in_finwait2()`, `conn_mgmt.on_fin_in_finwait2()`
    - RST handling: Component `on_rst()` methods
-   
+
 7. **process_closewait()** ✅ (NEW)
    - RST handling: Component `on_rst()` methods
    - Note: Just waits for application to close
-   
+
 8. **process_closing()** ✅ (NEW)
    - ACK handling: `rod.on_ack_in_closing()`, `flow_ctrl.on_ack_in_closing()`, `cong_ctrl.on_ack_in_closing()`, `conn_mgmt.on_ack_in_closing()`
    - RST handling: Component `on_rst()` methods
-   
+
 9. **process_lastack()** ✅ (NEW)
    - ACK handling: `rod.on_ack_in_lastack()`, `flow_ctrl.on_ack_in_lastack()`, `cong_ctrl.on_ack_in_lastack()`, `conn_mgmt.on_ack_in_lastack()`
    - RST handling: Component `on_rst()` methods
-   
+
 10. **process_timewait()** ✅ (NEW)
     - Just absorbs packets (2MSL timer will close connection)
 
@@ -657,7 +657,7 @@ All dispatchers follow the same pattern:
    - ROD: Update sequence numbers
    - FlowControl: Update windows
    - CongestionControl: Update cwnd
-   
+
 2. **State transition last** (writes state)
    - ConnectionManagement: Change TCP state
 
@@ -907,7 +907,7 @@ running 8 tests (unit tests)
 running 42 tests (control_path_tests)
 [All 42 pass] ✅
 
-running 5 tests (handshake_tests)  
+running 5 tests (handshake_tests)
 [All 5 pass] ✅
 
 running 3 tests (test_helpers)
@@ -944,7 +944,7 @@ running 3 tests (test_helpers)
 ### Statistics
 
 - **Tests updated:** 10 state transition tests
-- **Tests preserved:** 32 API-level tests  
+- **Tests preserved:** 32 API-level tests
 - **Component method calls added:** ~120 (4 per transition × 30 transitions)
 - **Lines changed:** 169 insertions, 46 deletions
 - **Bugs found and fixed:** 1 (missing cwnd initialization)
