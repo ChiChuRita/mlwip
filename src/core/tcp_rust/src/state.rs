@@ -271,7 +271,19 @@ impl ConnectionManagementState {
         remote_ip: ffi::ip_addr_t,
         remote_port: u16,
     ) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+        // Validate we're in LISTEN state
+        if self.state != TcpState::Listen {
+            return Err("Not in LISTEN state");
+        }
+
+        // Store remote endpoint
+        self.remote_ip = remote_ip;
+        self.remote_port = remote_port;
+
+        // Transition to SYN_RCVD
+        self.state = TcpState::SynRcvd;
+
+        Ok(())
     }
 
     /// SYN_SENT → ESTABLISHED: Handle incoming SYN+ACK (active open)
@@ -407,7 +419,30 @@ impl ReliableOrderedDeliveryState {
 
     /// LISTEN → SYN_RCVD: Initialize sequence numbers from incoming SYN
     pub fn on_syn_in_listen(&mut self, seg: &TcpSegment) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+        // Store peer's initial sequence number
+        self.irs = seg.seqno;
+        self.rcv_nxt = seg.seqno.wrapping_add(1);
+
+        // Generate our initial sequence number (ISS)
+        // TODO: Use proper ISS generation per RFC 6528 (currently simplified)
+        self.iss = Self::generate_iss();
+        self.snd_nxt = self.iss;
+        self.snd_lbb = self.iss;
+        self.lastack = self.iss;
+
+        Ok(())
+    }
+
+    /// Generate Initial Sequence Number (ISS)
+    ///
+    /// TODO: Implement proper ISS generation per RFC 6528
+    /// For now, use a simple counter
+    fn generate_iss() -> u32 {
+        unsafe {
+            static mut ISS_COUNTER: u32 = 0;
+            ISS_COUNTER = ISS_COUNTER.wrapping_add(1);
+            ISS_COUNTER
+        }
     }
 
     /// SYN_SENT → ESTABLISHED: Process SYN+ACK, update sequence numbers
@@ -550,7 +585,16 @@ impl FlowControlState {
         seg: &TcpSegment,
         _conn_mgmt: &ConnectionManagementState,
     ) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+        // Store peer's advertised window
+        self.snd_wnd = seg.wnd;
+        self.snd_wnd_max = seg.wnd;
+
+        // Initialize our receive window
+        // TODO: Base this on actual buffer size
+        self.rcv_wnd = 4096;
+        self.rcv_ann_wnd = self.rcv_wnd;
+
+        Ok(())
     }
 
     /// SYN_SENT → ESTABLISHED: Store peer's advertised window
@@ -669,7 +713,14 @@ impl CongestionControlState {
         &mut self,
         conn_mgmt: &ConnectionManagementState,
     ) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::process_syn_in_listen")
+        // Initialize congestion control
+        // RFC 5681: IW = min(4*MSS, max(2*MSS, 4380 bytes))
+        let mss = conn_mgmt.mss as u16;
+        self.cwnd = core::cmp::min(4 * mss, core::cmp::max(2 * mss, 4380));
+        
+        // ssthresh is already initialized to 0xFFFF in TcpConnectionState::new()
+        
+        Ok(())
     }
 
     /// SYN_SENT → ESTABLISHED: Initialize cwnd (active open)

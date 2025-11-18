@@ -131,7 +131,21 @@ impl TcpRx {
             // Valid SYN - initiate passive open
             // TODO: Extract remote port from actual packet
             let remote_port = state.conn_mgmt.remote_port; // Placeholder
-            ControlPath::process_syn_in_listen(state, seg, remote_ip, remote_port)?;
+
+            // NEW APPROACH: Call component methods instead of control path
+            // Each component handles its own state updates
+            
+            // 1. ROD: Initialize sequence numbers
+            state.rod.on_syn_in_listen(seg)?;
+            
+            // 2. Flow Control: Initialize windows
+            state.flow_ctrl.on_syn_in_listen(seg, &state.conn_mgmt)?;
+            
+            // 3. Congestion Control: Initialize cwnd
+            state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt)?;
+            
+            // 4. Connection Management: Store endpoint and transition state
+            state.conn_mgmt.on_syn_in_listen(remote_ip, remote_port)?;
 
             // Now we need to send SYN+ACK
             // This will be handled by the TX path

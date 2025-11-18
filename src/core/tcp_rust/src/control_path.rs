@@ -863,6 +863,8 @@ mod tests {
         };
 
         let remote_ip = unsafe { core::mem::zeroed() };
+        
+        // OLD APPROACH (still works for backward compatibility)
         let result = ControlPath::process_syn_in_listen(&mut state, &seg, remote_ip, 12345);
 
         assert!(result.is_ok());
@@ -870,6 +872,48 @@ mod tests {
         assert_eq!(state.rod.irs, 1000);
         assert_eq!(state.rod.rcv_nxt, 1001);
         assert_eq!(state.flow_ctrl.snd_wnd, 8192);
+    }
+
+    #[test]
+    fn test_syn_in_listen_component_methods() {
+        // NEW APPROACH: Test component methods directly
+        let mut state = TcpConnectionState::new();
+        state.conn_mgmt.state = TcpState::Listen;
+        state.conn_mgmt.mss = 1460;
+
+        let seg = TcpSegment {
+            seqno: 1000,
+            ackno: 0,
+            flags: TcpFlags {
+                syn: true,
+                ack: false,
+                fin: false,
+                rst: false,
+                psh: false,
+                urg: false,
+            },
+            wnd: 8192,
+            tcphdr_len: 20,
+            payload_len: 0,
+        };
+
+        let remote_ip = unsafe { core::mem::zeroed() };
+        let remote_port = 12345;
+
+        // Call component methods in sequence
+        state.rod.on_syn_in_listen(&seg).unwrap();
+        state.flow_ctrl.on_syn_in_listen(&seg, &state.conn_mgmt).unwrap();
+        state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt).unwrap();
+        state.conn_mgmt.on_syn_in_listen(remote_ip, remote_port).unwrap();
+
+        // Verify same results as old approach
+        assert_eq!(state.conn_mgmt.state, TcpState::SynRcvd);
+        assert_eq!(state.conn_mgmt.remote_port, 12345);
+        assert_eq!(state.rod.irs, 1000);
+        assert_eq!(state.rod.rcv_nxt, 1001);
+        assert_eq!(state.flow_ctrl.snd_wnd, 8192);
+        assert_eq!(state.flow_ctrl.rcv_wnd, 4096);
+        assert!(state.cong_ctrl.cwnd > 0); // cwnd should be initialized
     }
 
     #[test]
