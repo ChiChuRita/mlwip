@@ -9,9 +9,8 @@ use test_helpers::*;
 use lwip_tcp_rust::{
     TcpFlags, TcpSegment,
     RstValidation, AckValidation, InputAction,
-    tcp_bind, tcp_listen, tcp_connect, tcp_abort, initiate_close
+    tcp_bind, tcp_listen, tcp_connect, tcp_abort, initiate_close, tcp_input
 };
-use lwip_tcp_rust::control_path::ControlPath;  // Legacy test functions
 use lwip_tcp_rust::state::{TcpConnectionState, TcpState};
 use lwip_tcp_rust::tcp_proto;
 use lwip_tcp_rust::ffi;
@@ -979,7 +978,7 @@ fn test_validate_sequence_number_in_window() {
         payload_len: 100,
     };
 
-    assert!(ControlPath::validate_sequence_number(&state, &seg));
+    assert!(state.rod.validate_sequence_number(&seg, state.flow_ctrl.rcv_wnd));
 
     // Segment in middle of window
     let seg2 = TcpSegment {
@@ -991,7 +990,7 @@ fn test_validate_sequence_number_in_window() {
         payload_len: 100,
     };
 
-    assert!(ControlPath::validate_sequence_number(&state, &seg2));
+    assert!(state.rod.validate_sequence_number(&seg2, state.flow_ctrl.rcv_wnd));
 
     // Segment at end of window
     let seg3 = TcpSegment {
@@ -1003,7 +1002,7 @@ fn test_validate_sequence_number_in_window() {
         payload_len: 1,
     };
 
-    assert!(ControlPath::validate_sequence_number(&state, &seg3));
+    assert!(state.rod.validate_sequence_number(&seg3, state.flow_ctrl.rcv_wnd));
 }
 
 #[test]
@@ -1038,7 +1037,7 @@ fn test_validate_sequence_number_out_of_window() {
         payload_len: 100,
     };
 
-    assert!(!ControlPath::validate_sequence_number(&state, &seg));
+    assert!(!state.rod.validate_sequence_number(&seg, state.flow_ctrl.rcv_wnd));
 
     // Segment after window
     let seg2 = TcpSegment {
@@ -1050,7 +1049,7 @@ fn test_validate_sequence_number_out_of_window() {
         payload_len: 100,
     };
 
-    assert!(!ControlPath::validate_sequence_number(&state, &seg2));
+    assert!(!state.rod.validate_sequence_number(&seg2, state.flow_ctrl.rcv_wnd));
 }
 
 #[test]
@@ -1085,7 +1084,7 @@ fn test_validate_sequence_number_zero_window() {
         payload_len: 0,
     };
 
-    assert!(ControlPath::validate_sequence_number(&state, &seg_exact));
+    assert!(state.rod.validate_sequence_number(&seg_exact, state.flow_ctrl.rcv_wnd));
 
     // Anything else should be rejected
     let seg_off = TcpSegment {
@@ -1097,7 +1096,7 @@ fn test_validate_sequence_number_zero_window() {
         payload_len: 0,
     };
 
-    assert!(!ControlPath::validate_sequence_number(&state, &seg_off));
+    assert!(!state.rod.validate_sequence_number(&seg_off, state.flow_ctrl.rcv_wnd));
 }
 
 // ============================================================================
@@ -1136,7 +1135,7 @@ fn test_validate_rst_in_window() {
         payload_len: 0,
     };
 
-    let result = ControlPath::validate_rst(&state, &seg);
+    let result = state.rod.validate_rst(&seg, state.flow_ctrl.rcv_wnd);
     assert_eq!(result, RstValidation::Valid);
 }
 
@@ -1172,7 +1171,7 @@ fn test_validate_rst_out_of_window() {
         payload_len: 0,
     };
 
-    let result = ControlPath::validate_rst(&state, &seg);
+    let result = state.rod.validate_rst(&seg, state.flow_ctrl.rcv_wnd);
     assert_eq!(result, RstValidation::Challenge);
 }
 
@@ -1212,7 +1211,7 @@ fn test_validate_ack_valid() {
         payload_len: 0,
     };
 
-    let result = ControlPath::validate_ack(&state, &seg);
+    let result = state.rod.validate_ack(&seg);
     assert_eq!(result, AckValidation::Valid);
 }
 
@@ -1248,7 +1247,7 @@ fn test_validate_ack_duplicate() {
         payload_len: 0,
     };
 
-    let result = ControlPath::validate_ack(&state, &seg);
+    let result = state.rod.validate_ack(&seg);
     assert_eq!(result, AckValidation::Duplicate);
 }
 
@@ -1284,7 +1283,7 @@ fn test_validate_ack_future() {
         payload_len: 0,
     };
 
-    let result = ControlPath::validate_ack(&state, &seg);
+    let result = state.rod.validate_ack(&seg);
     assert_eq!(result, AckValidation::Future);
 }
 
@@ -1320,7 +1319,7 @@ fn test_validate_ack_old() {
         payload_len: 0,
     };
 
-    let result = ControlPath::validate_ack(&state, &seg);
+    let result = state.rod.validate_ack(&seg);
     assert_eq!(result, AckValidation::Old);
 }
 
@@ -1350,7 +1349,7 @@ fn test_tcp_input_dispatcher_listen() {
         payload_len: 0,
     };
 
-    let result = ControlPath::tcp_input(
+    let result = tcp_input(
         &mut state,
         &syn_seg,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
@@ -1391,7 +1390,7 @@ fn test_tcp_input_dispatcher_established_with_fin() {
         payload_len: 0,
     };
 
-    let result = ControlPath::tcp_input(
+    let result = tcp_input(
         &mut state,
         &fin_seg,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
@@ -1432,7 +1431,7 @@ fn test_tcp_input_dispatcher_rst_in_window() {
         payload_len: 0,
     };
 
-    let result = ControlPath::tcp_input(
+    let result = tcp_input(
         &mut state,
         &rst_seg,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },
@@ -1473,7 +1472,7 @@ fn test_tcp_input_dispatcher_rst_out_of_window() {
         payload_len: 0,
     };
 
-    let result = ControlPath::tcp_input(
+    let result = tcp_input(
         &mut state,
         &rst_seg,
         ffi::ip_addr_t { addr: TEST_REMOTE_IP },

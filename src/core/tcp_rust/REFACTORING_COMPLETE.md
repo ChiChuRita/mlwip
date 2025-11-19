@@ -107,20 +107,28 @@ test result: ok. 3 passed  (test_helpers)
 Total: 58/58 tests passing ✅
 ```
 
-### Why Keep control_path.rs?
+### control_path.rs Successfully Removed! ✅
 
-**Decision:** Mark as deprecated but don't delete yet.
+**Decision:** Fully removed as of Nov 19, 2024.
 
-**Reasons:**
-1. Contains ~900 lines of legacy test utility functions
-2. Some tests still use `ControlPath::` for validation functions
-3. Migrating all test functions would be a separate large task
-4. Backward compatibility for any external code (if any)
+**What was done:**
+1. Migrated validation functions to `ROD` component:
+   - `validate_sequence_number()` → `rod.validate_sequence_number(seg, rcv_wnd)`
+   - `validate_ack()` → `rod.validate_ack(seg)`
+   - `validate_rst()` → `rod.validate_rst(seg, rcv_wnd)`
+   - Added helper sequence comparison functions (seq_lt, seq_leq, seq_gt, seq_in_window)
 
-**Future Work:** Eventually remove control_path.rs by:
-- Migrating validation functions to component methods
-- Updating remaining tests to use component methods directly
-- Or accepting that test utilities don't need to follow the same architecture
+2. Created `tcp_input()` dispatcher in `tcp_api.rs`:
+   - Replaced `ControlPath::tcp_input()` with component-based dispatcher
+   - Uses component methods for all state transitions
+   - Returns `InputAction` enum for test validation
+
+3. Updated all 58 tests to use new APIs:
+   - Changed `ControlPath::validate_*` → `state.rod.validate_*`
+   - Changed `ControlPath::tcp_input` → `tcp_input` (re-exported from tcp_api)
+   - All tests pass with no backward compatibility needed
+
+**Result:** Zero lines of privileged control path code remain! Clean component-based architecture achieved.
 
 ---
 
@@ -213,17 +221,17 @@ All module headers updated with accurate descriptions:
 |--------|-------|---------|
 | `components/mod.rs` | 32 | Component exports |
 | `components/connection_mgmt.rs` | 293 | TCP state machine |
-| `components/rod.rs` | 309 | Sequence numbers |
+| `components/rod.rs` | 385 | Sequence numbers + validation |
 | `components/flow_control.rs` | 189 | Window management |
 | `components/congestion_control.rs` | 164 | Congestion control |
 | `state.rs` | 78 | TcpState enum + aggregator |
 | `tcp_types.rs` | 69 | Shared types |
-| `tcp_api.rs` | 147 | API functions |
+| `tcp_api.rs` | 337 | API functions + tcp_input dispatcher |
 | `tcp_in.rs` | ~450 | Input dispatcher |
 | `tcp_out.rs` | ~200 | Output handling |
-| **Total (new architecture)** | **~1931** | Clean modular code |
+| **Total (new architecture)** | **~2197** | Clean modular code |
 | | | |
-| `control_path.rs` (deprecated) | 894 | Legacy test utils |
+| **control_path.rs** | **REMOVED ✅** | **Fully eliminated!** |
 
 ### Migration Statistics
 

@@ -69,9 +69,7 @@ pub mod tcp_api;
 pub mod tcp_in;
 pub mod tcp_out;
 
-// Deprecated - kept for test compatibility only
-#[deprecated(note = "Use tcp_types, tcp_api, and components modules instead")]
-pub mod control_path;
+// Note: control_path has been removed. Use `tcp_types`, `tcp_api`, and `components` instead.
 
 // Re-export commonly used types
 pub use state::{TcpState, TcpConnectionState};
@@ -82,3 +80,5 @@ pub use tcp_types::{
 pub use tcp_api::{
     tcp_bind, tcp_listen, tcp_connect, tcp_abort, initiate_close
 };
+// Re-export tcp_input dispatcher for test compatibility
+pub use tcp_api::tcp_input;

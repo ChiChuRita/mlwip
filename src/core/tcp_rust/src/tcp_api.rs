@@ -137,3 +137,184 @@ pub fn tcp_abort(state: &mut TcpConnectionState) -> Result<bool, &'static str> {
     state.conn_mgmt.state = TcpState::Closed;
     Ok(should_send_rst)
 }
+
+/// Process an incoming TCP segment represented as a parsed `TcpSegment`.
+///
+/// This is a test-friendly dispatcher that mirrors the old `ControlPath::tcp_input` behavior.
+pub fn tcp_input(
+    state: &mut TcpConnectionState,
+    seg: &crate::tcp_types::TcpSegment,
+    remote_ip: ffi::ip_addr_t,
+    remote_port: u16,
+) -> Result<crate::tcp_types::InputAction, &'static str> {
+    use crate::tcp_types::{InputAction};
+
+    // Handle RST first (in any state)
+    if seg.flags.rst {
+        match state.rod.validate_rst(seg, state.flow_ctrl.rcv_wnd) {
+            crate::tcp_types::RstValidation::Valid => {
+                // Close connection
+                state.conn_mgmt.on_rst()?;
+                return Ok(InputAction::Abort);
+            }
+            crate::tcp_types::RstValidation::Challenge => return Ok(InputAction::SendChallengeAck),
+            crate::tcp_types::RstValidation::Invalid => return Ok(InputAction::Drop),
+        }
+    }
+
+    // Dispatch based on current state
+    match state.conn_mgmt.state {
+        TcpState::Closed => {
+            // RFC 793: All segments are rejected in CLOSED state
+            // Send RST if not already RST
+            if !seg.flags.rst {
+                Ok(InputAction::SendRst)
+            } else {
+                Ok(InputAction::Drop)
+            }
+        }
+        TcpState::Listen => {
+            // Only accept SYN in LISTEN state
+            if seg.flags.syn && !seg.flags.ack {
+                // Process the SYN using component methods
+                state.rod.on_syn_in_listen(seg)?;
+                state.flow_ctrl.on_syn_in_listen(seg, &state.conn_mgmt)?;
+                state.cong_ctrl.on_syn_in_listen(&state.conn_mgmt)?;
+                state.conn_mgmt.on_syn_in_listen(remote_ip, remote_port)?;
+                Ok(InputAction::SendSynAck)
+            } else {
+                Ok(InputAction::SendRst)
+            }
+        }
+        TcpState::SynSent => {
+            // Expecting SYN+ACK
+            if seg.flags.syn && seg.flags.ack {
+                // Let components process SYN+ACK
+                state.rod.on_synack_in_synsent(seg)?;
+                state.flow_ctrl.on_synack_in_synsent(seg)?;
+                state.cong_ctrl.on_synack_in_synsent(&state.conn_mgmt)?;
+                state.conn_mgmt.on_synack_in_synsent()?;
+                Ok(InputAction::Accept)
+            } else if seg.flags.syn {
+                // Simultaneous open (SYN without ACK)
+                Ok(InputAction::Accept)
+            } else {
+                Ok(InputAction::Drop)
+            }
+        }
+        TcpState::SynRcvd => {
+            // Validate sequence number
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            // Expecting ACK of our SYN
+            if seg.flags.ack {
+                // Let components handle ACK in SYN_RCVD
+                state.rod.on_ack_in_synrcvd(seg)?;
+                state.flow_ctrl.on_ack_in_synrcvd(seg)?;
+                state.cong_ctrl.on_ack_in_synrcvd()?;
+                state.conn_mgmt.on_ack_in_synrcvd()?;
+                Ok(InputAction::Accept)
+            } else {
+                Ok(InputAction::Drop)
+            }
+        }
+        TcpState::Established => {
+            // Validate sequence number
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            // Validate ACK if present
+            if seg.flags.ack {
+                match state.rod.validate_ack(seg) {
+                    crate::tcp_types::AckValidation::Valid | crate::tcp_types::AckValidation::Duplicate => {
+                        // Process normally via components (ACK handling)
+                        // For now, no-op at API level
+                    }
+                    crate::tcp_types::AckValidation::Future => {
+                        // RFC 5961: ACK of unsent data - send challenge ACK
+                        return Ok(InputAction::SendChallengeAck);
+                    }
+                    crate::tcp_types::AckValidation::Old | crate::tcp_types::AckValidation::Invalid => {
+                        return Ok(InputAction::Drop);
+                    }
+                }
+            }
+
+            // Check for FIN
+            if seg.flags.fin {
+                // Process FIN and transition to CLOSE_WAIT
+                state.rod.on_fin_in_established(seg)?;
+                state.flow_ctrl.on_fin_in_established(seg)?;
+                state.cong_ctrl.on_fin_in_established(seg)?;
+                state.conn_mgmt.on_fin_in_established()?;
+                Ok(InputAction::SendAck)
+            } else {
+                Ok(InputAction::Accept)
+            }
+        }
+        TcpState::FinWait1 => {
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            if seg.flags.ack || seg.flags.fin {
+                Ok(InputAction::Accept)
+            } else {
+                Ok(InputAction::Drop)
+            }
+        }
+        TcpState::FinWait2 => {
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            if seg.flags.fin {
+                Ok(InputAction::Accept)
+            } else {
+                Ok(InputAction::Accept)
+            }
+        }
+        TcpState::CloseWait => {
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+            Ok(InputAction::Accept)
+        }
+        TcpState::Closing => {
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            if seg.flags.ack {
+                Ok(InputAction::Accept)
+            } else {
+                Ok(InputAction::Drop)
+            }
+        }
+        TcpState::LastAck => {
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            if seg.flags.ack {
+                Ok(InputAction::Accept)
+            } else {
+                Ok(InputAction::Drop)
+            }
+        }
+        TcpState::TimeWait => {
+            if !state.rod.validate_sequence_number(seg, state.flow_ctrl.rcv_wnd) {
+                return Ok(InputAction::Drop);
+            }
+
+            if seg.flags.fin {
+                Ok(InputAction::SendAck)
+            } else {
+                Ok(InputAction::Accept)
+            }
+        }
+    }
+}

@@ -291,19 +291,84 @@ impl ReliableOrderedDeliveryState {
     /// Validate sequence number (RFC 793)
     pub fn validate_sequence_number(
         &self,
-        _seg: &TcpSegment,
-        _rcv_wnd: u16,
+        seg: &TcpSegment,
+        rcv_wnd: u16,
     ) -> bool {
-        unimplemented!("TODO: Migrate from control_path - validation logic")
+        let seqno = seg.seqno;
+        let rcv_nxt = self.rcv_nxt;
+
+        // Special case: zero window
+        if rcv_wnd == 0 {
+            return seqno == rcv_nxt;
+        }
+
+        // Check if sequence number is within receive window
+        // Valid if: RCV.NXT <= SEG.SEQ < RCV.NXT + RCV.WND
+        let seg_end = seqno.wrapping_add(seg.payload_len as u32);
+
+        // Check if segment overlaps with receive window
+        let seq_acceptable = Self::seq_in_window(seqno, rcv_nxt, rcv_wnd)
+            || (seg.payload_len > 0 && Self::seq_in_window(seg_end.wrapping_sub(1), rcv_nxt, rcv_wnd));
+
+        seq_acceptable
     }
 
     /// Validate ACK field (RFC 5961)
     pub fn validate_ack(&self, _seg: &TcpSegment) -> crate::tcp_types::AckValidation {
-        unimplemented!("TODO: Migrate from control_path - ACK validation")
+        let seg = _seg;
+        let ackno = seg.ackno;
+        let snd_una = self.lastack;
+        let snd_nxt = self.snd_nxt;
+
+        // ACK must be in range: SND.UNA < SEG.ACK <= SND.NXT
+        if ackno == snd_una {
+            crate::tcp_types::AckValidation::Duplicate
+        } else if Self::seq_lt(snd_una, ackno) && Self::seq_leq(ackno, snd_nxt) {
+            crate::tcp_types::AckValidation::Valid
+        } else if Self::seq_gt(ackno, snd_nxt) {
+            // RFC 5961: ACK of unsent data
+            crate::tcp_types::AckValidation::Future
+        } else {
+            // ACK for already acknowledged data
+            crate::tcp_types::AckValidation::Old
+        }
     }
 
     /// Validate RST segment (RFC 5961)
     pub fn validate_rst(&self, _seg: &TcpSegment, _rcv_wnd: u16) -> crate::tcp_types::RstValidation {
-        unimplemented!("TODO: Migrate from control_path - RST validation")
+        let seg = _seg;
+        // Check if sequence number is in window
+        if self.validate_sequence_number(seg, _rcv_wnd) {
+            // In window - accept the RST
+            crate::tcp_types::RstValidation::Valid
+        } else {
+            // Out of window - send challenge ACK per RFC 5961
+            crate::tcp_types::RstValidation::Challenge
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Sequence Number Comparison (RFC 793)
+    // ------------------------------------------------------------------------
+
+    /// Check if a sequence number is within the window
+    fn seq_in_window(seq: u32, rcv_nxt: u32, rcv_wnd: u16) -> bool {
+        let diff = seq.wrapping_sub(rcv_nxt);
+        diff < rcv_wnd as u32
+    }
+
+    /// Sequence number less than (handles wraparound)
+    fn seq_lt(a: u32, b: u32) -> bool {
+        (a.wrapping_sub(b) as i32) < 0
+    }
+
+    /// Sequence number less than or equal (handles wraparound)
+    fn seq_leq(a: u32, b: u32) -> bool {
+        (a.wrapping_sub(b) as i32) <= 0
+    }
+
+    /// Sequence number greater than (handles wraparound)
+    fn seq_gt(a: u32, b: u32) -> bool {
+        (a.wrapping_sub(b) as i32) > 0
     }
 }
