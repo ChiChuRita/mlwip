@@ -20,6 +20,13 @@ if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
 endif()
 
 set (LWIP_DEFINITIONS -DLWIP_DEBUG -DLWIP_NOASSERT_ON_ERROR)
+
+# Propagate LWIP_USE_RUST_TCP to unit tests
+if (LWIP_USE_RUST_TCP)
+    list(APPEND LWIP_DEFINITIONS -DLWIP_USE_RUST_TCP=1)
+else()
+    list(APPEND LWIP_DEFINITIONS -DLWIP_USE_RUST_TCP=0)
+endif()
 set (LWIP_INCLUDE_DIRS
     "${LWIP_DIR}/test/unit"
     "${LWIP_DIR}/src/include"
