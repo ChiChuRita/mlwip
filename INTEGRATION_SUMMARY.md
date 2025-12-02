@@ -14,7 +14,7 @@ Existing C applications call `tcp_new()` and expect a `struct tcp_pcb*` pointer 
 ### Why the Opaque Pointer?
 
 The solution is a **handle-based API**:
-- C holds a "ticket" (the pointer) but never dereferences it
+- C holds a the pointer but never dereferences it
 - Rust holds the actual data and mediates all access
 - C API remains unchanged—applications don't need modification
 
