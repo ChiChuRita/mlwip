@@ -1,4 +1,4 @@
-# Install script for directory: /workspaces/mlwip/contrib/ports/unix/check
+# Install script for directory: /workspaces/mlwip
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -40,6 +40,12 @@ endif()
 # Set default install directory permissions.
 if(NOT DEFINED CMAKE_OBJDUMP)
   set(CMAKE_OBJDUMP "/usr/bin/objdump")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for each subdirectory.
+  include("/workspaces/mlwip/test_build/contrib/ports/unix/example_app/cmake_install.cmake")
+
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
