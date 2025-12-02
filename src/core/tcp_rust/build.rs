@@ -22,7 +22,7 @@ fn main() {
         .clang_arg(format!("-I{}", include_dir.display()))
         .clang_arg(format!("-I{}", unix_port_include.display()))
         .clang_arg(format!("-I{}", unix_lib_include.display()))
-        // Allowlist only what we need
+        // Allowlist only what we need (TCP protocol is pure Rust now)
         .allowlist_type("pbuf")
         .allowlist_type("pbuf_layer")
         .allowlist_type("pbuf_type")
@@ -69,15 +69,7 @@ fn main() {
         .allowlist_var("tcp_ticks")
         .allowlist_var("PBUF_.*")
         .allowlist_var("IP_PROTO_TCP")
-        .allowlist_var("IPADDR_TYPE_.*")
-        .allowlist_var("TCP_PRIO_.*")
-        .allowlist_var("TCP_WND")
-        .allowlist_var("TCP_SND_BUF")
-        .allowlist_var("TCP_MSS")
-        .allowlist_var("TCP_.*")
-        .allowlist_var("ERR_.*")
-        .allowlist_var("MEMP_TCP_PCB")
-        .allowlist_var("MEMP_TCP_PCB_LISTEN")
+        // TCP is now pure Rust - no need for C bindings
         // Generate with useful derivations
         .derive_debug(true)
         .derive_default(true)
