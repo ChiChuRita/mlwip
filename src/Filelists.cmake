@@ -328,7 +328,13 @@ target_include_directories(lwipcore PRIVATE ${LWIP_INCLUDE_DIRS} ${LWIP_MBEDTLS_
 if (LWIP_USE_RUST_TCP)
     # Define for C code and link Rust static lib
     target_compile_definitions(lwipcore PUBLIC LWIP_USE_RUST_TCP=1)
-    target_link_libraries(lwipcore ${RUST_TCP_LIB})
+    # Rust std needs libdl on Linux
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_library(LIBDL dl)
+        target_link_libraries(lwipcore ${RUST_TCP_LIB} ${LIBDL})
+    else()
+        target_link_libraries(lwipcore ${RUST_TCP_LIB})
+    endif()
 else()
     target_compile_definitions(lwipcore PUBLIC LWIP_USE_RUST_TCP=0)
 endif()

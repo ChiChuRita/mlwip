@@ -407,6 +407,7 @@ lwip_unittests: /usr/lib/aarch64-linux-gnu/libutil.so
 lwip_unittests: /usr/lib/aarch64-linux-gnu/libpthread.so
 lwip_unittests: /usr/lib/aarch64-linux-gnu/librt.so
 lwip_unittests: /workspaces/mlwip/contrib/ports/unix/check/../../../../src/core/tcp_rust/target/release/liblwip_tcp_rust.a
+lwip_unittests: /usr/lib/aarch64-linux-gnu/libdl.so
 lwip_unittests: CMakeFiles/lwip_unittests.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/workspaces/mlwip/test_build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Linking C executable lwip_unittests"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/lwip_unittests.dir/link.txt --verbose=$(VERBOSE)

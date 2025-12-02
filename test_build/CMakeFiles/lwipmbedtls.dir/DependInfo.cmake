@@ -14,6 +14,7 @@ set(CMAKE_C_COMPILER_ID "GNU")
 set(CMAKE_TARGET_DEFINITIONS_C
   "LWIP_DEBUG"
   "LWIP_NOASSERT_ON_ERROR"
+  "LWIP_USE_RUST_TCP=1"
   )
 
 # The include file search paths:

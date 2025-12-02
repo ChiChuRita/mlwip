@@ -192,6 +192,9 @@ DOXYGEN_EXECUTABLE:FILEPATH=DOXYGEN_EXECUTABLE-NOTFOUND
 LIBCHECK:FILEPATH=/usr/lib/aarch64-linux-gnu/libcheck.a
 
 //Path to a library.
+LIBDL:FILEPATH=/usr/lib/aarch64-linux-gnu/libdl.so
+
+//Path to a library.
 LIBM:FILEPATH=/usr/lib/aarch64-linux-gnu/libm.so
 
 //Path to a library.
@@ -213,7 +216,7 @@ LWIP_USE_RUST_TCP:BOOL=ON
 lwipcontribportunix_LIB_DEPENDS:STATIC=general;/usr/lib/aarch64-linux-gnu/libutil.so;general;/usr/lib/aarch64-linux-gnu/libpthread.so;general;/usr/lib/aarch64-linux-gnu/librt.so;
 
 //Dependencies for the target
-lwipcore_LIB_DEPENDS:STATIC=general;/workspaces/mlwip/contrib/ports/unix/check/../../../../src/core/tcp_rust/target/release/liblwip_tcp_rust.a;
+lwipcore_LIB_DEPENDS:STATIC=general;/workspaces/mlwip/contrib/ports/unix/check/../../../../src/core/tcp_rust/target/release/liblwip_tcp_rust.a;general;/usr/lib/aarch64-linux-gnu/libdl.so;
 
 //Value Computed by CMake
 lwipunittests_BINARY_DIR:STATIC=/workspaces/mlwip/test_build
