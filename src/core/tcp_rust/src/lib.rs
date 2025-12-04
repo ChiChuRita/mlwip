@@ -78,8 +78,7 @@ pub mod components;
 pub mod state;
 pub mod tcp_types;
 pub mod tcp_api;
-pub mod tcp_in;
-pub mod tcp_out;
+
 
 pub use state::{TcpState, TcpConnectionState};
 pub use tcp_types::{
