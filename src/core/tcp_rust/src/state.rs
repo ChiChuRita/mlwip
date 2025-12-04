@@ -62,10 +62,18 @@ pub struct TcpConnectionState {
     pub flow_ctrl: FlowControlState,
     pub cong_ctrl: CongestionControlState,
     pub demux: DemuxState,
+
+    pub callback_arg: *mut core::ffi::c_void,
+    pub recv_callback: Option<unsafe extern "C" fn(*mut core::ffi::c_void, *mut core::ffi::c_void, *mut core::ffi::c_void, i8) -> i8>,
+    pub sent_callback: Option<unsafe extern "C" fn(*mut core::ffi::c_void, *mut core::ffi::c_void, u16) -> i8>,
+    pub err_callback: Option<unsafe extern "C" fn(*mut core::ffi::c_void, i8)>,
+    pub connected_callback: Option<unsafe extern "C" fn(*mut core::ffi::c_void, *mut core::ffi::c_void, i8) -> i8>,
+    pub poll_callback: Option<unsafe extern "C" fn(*mut core::ffi::c_void, *mut core::ffi::c_void) -> i8>,
+    pub accept_callback: Option<unsafe extern "C" fn(*mut core::ffi::c_void, *mut core::ffi::c_void, i8) -> i8>,
+    pub poll_interval: u8,
 }
 
 impl TcpConnectionState {
-    /// Create a new TCP connection state with default values
     pub fn new() -> Self {
         Self {
             conn_mgmt: ConnectionManagementState::new(),
@@ -73,6 +81,14 @@ impl TcpConnectionState {
             flow_ctrl: FlowControlState::new(),
             cong_ctrl: CongestionControlState::new(),
             demux: DemuxState::new(),
+            callback_arg: core::ptr::null_mut(),
+            recv_callback: None,
+            sent_callback: None,
+            err_callback: None,
+            connected_callback: None,
+            poll_callback: None,
+            accept_callback: None,
+            poll_interval: 0,
         }
     }
 }

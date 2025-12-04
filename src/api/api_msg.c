@@ -946,9 +946,9 @@ lwip_netconn_do_close_internal(struct netconn *conn  WRITE_DELAYED_PARAM)
   if (shut == NETCONN_SHUT_RDWR) {
     shut_close = 1;
   } else if (shut_rx &&
-             ((tpcb->state == FIN_WAIT_1) ||
-              (tpcb->state == FIN_WAIT_2) ||
-              (tpcb->state == CLOSING))) {
+             ((tcp_state_get(tpcb) == FIN_WAIT_1) ||
+              (tcp_state_get(tpcb) == FIN_WAIT_2) ||
+              (tcp_state_get(tpcb) == CLOSING))) {
     shut_close = 1;
   } else if (shut_tx && ((tpcb->flags & TF_RXCLOSED) != 0)) {
     shut_close = 1;
@@ -960,7 +960,7 @@ lwip_netconn_do_close_internal(struct netconn *conn  WRITE_DELAYED_PARAM)
   if (shut_close) {
     tcp_arg(tpcb, NULL);
   }
-  if (tpcb->state == LISTEN) {
+  if (tcp_state_get(tpcb) == LISTEN) {
     tcp_accept(tpcb, NULL);
   } else {
     /* some callbacks have to be reset if tcp_close is not successful */
@@ -1090,7 +1090,7 @@ lwip_netconn_do_close_internal(struct netconn *conn  WRITE_DELAYED_PARAM)
   if (!close_finished) {
     /* Closing failed and we want to wait: restore some of the callbacks */
     /* Closing of listen pcb will never fail! */
-    LWIP_ASSERT("Closing a listen pcb may not fail!", (tpcb->state != LISTEN));
+    LWIP_ASSERT("Closing a listen pcb may not fail!", (tcp_state_get(tpcb) != LISTEN));
     if (shut_tx) {
       tcp_sent(tpcb, sent_tcp);
     }
@@ -1459,7 +1459,7 @@ lwip_netconn_do_listen(void *m)
     if (NETCONNTYPE_GROUP(msg->conn->type) == NETCONN_TCP) {
       if (msg->conn->state == NETCONN_NONE) {
         struct tcp_pcb *lpcb;
-        if (msg->conn->pcb.tcp->state != CLOSED) {
+        if (tcp_state_get(msg->conn->pcb.tcp) != CLOSED) {
           /* connection is not closed, cannot listen */
           err = ERR_VAL;
         } else {
@@ -1909,7 +1909,7 @@ lwip_netconn_do_getaddr(void *m)
 #if LWIP_TCP
       case NETCONN_TCP:
         if ((msg->msg.ad.local == 0) &&
-            ((msg->conn->pcb.tcp->state == CLOSED) || (msg->conn->pcb.tcp->state == LISTEN))) {
+            ((tcp_state_get(msg->conn->pcb.tcp) == CLOSED) || (tcp_state_get(msg->conn->pcb.tcp) == LISTEN))) {
           /* pcb is not connected and remote name is requested */
           msg->err = ERR_CONN;
         } else {

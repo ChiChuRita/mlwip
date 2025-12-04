@@ -70,6 +70,11 @@ set (LWIP_INCLUDE_DIRS
 You may add some defines:
 set (LWIP_DEFINITIONS LWIP_DEBUG=1)
 
+OPTIONAL: Choose TCP backend (Rust is default):
+set (LWIP_USE_RUST_TCP ON)   # Use Rust TCP implementation (default)
+# set (LWIP_USE_RUST_TCP OFF) # Use legacy C TCP implementation
+# See RUST_INTEGRATION_SUMMARY.md for details
+
 Then include the filelists you need:
 include(${LWIP_DIR}/src/Filelists.cmake)
 include(${LWIP_DIR}/contrib/Filelists.cmake)

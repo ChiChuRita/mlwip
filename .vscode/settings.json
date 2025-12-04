@@ -6,5 +6,8 @@
     "files.trimTrailingWhitespace": true,
     "files.associations": {
         "*.h": "c"
-    }
+    },
+    "rust-analyzer.linkedProjects": [
+        "/workspaces/mlwip/src/core/tcp_rust/Cargo.toml"
+    ]
 }

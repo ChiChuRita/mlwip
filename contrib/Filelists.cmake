@@ -45,6 +45,9 @@ set(lwipcontribapps_SRCS
     ${LWIP_CONTRIB_DIR}/apps/rtp/rtp.c
 )
 add_library(lwipcontribapps EXCLUDE_FROM_ALL ${lwipcontribapps_SRCS})
+if (LWIP_USE_RUST_TCP)
+    target_compile_definitions(lwipcontribapps PRIVATE LWIP_USE_RUST_TCP=1)
+endif()
 target_compile_options(lwipcontribapps PRIVATE ${LWIP_COMPILER_FLAGS})
 target_compile_definitions(lwipcontribapps PRIVATE ${LWIP_DEFINITIONS} ${LWIP_MBEDTLS_DEFINITIONS})
 target_include_directories(lwipcontribapps PRIVATE ${LWIP_INCLUDE_DIRS} ${LWIP_MBEDTLS_INCLUDE_DIRS})
@@ -56,6 +59,9 @@ set(lwipcontribaddons_SRCS
 #    ${LWIP_CONTRIB_DIR}/addons/tcp_md5/tcp_md5.c
 )
 add_library(lwipcontribaddons EXCLUDE_FROM_ALL ${lwipcontribaddons_SRCS})
+if (LWIP_USE_RUST_TCP)
+    target_compile_definitions(lwipcontribaddons PRIVATE LWIP_USE_RUST_TCP=1)
+endif()
 target_compile_options(lwipcontribaddons PRIVATE ${LWIP_COMPILER_FLAGS})
 target_compile_definitions(lwipcontribaddons PRIVATE ${LWIP_DEFINITIONS} ${LWIP_MBEDTLS_DEFINITIONS})
 target_include_directories(lwipcontribaddons PRIVATE ${LWIP_INCLUDE_DIRS} ${LWIP_MBEDTLS_INCLUDE_DIRS})

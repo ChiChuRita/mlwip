@@ -6,6 +6,7 @@
 #include "tcp/test_tcp.h"
 #include "tcp/test_tcp_oos.h"
 #include "tcp/test_tcp_state.h"
+#include "tcp/test_tcp_rust.h"
 #include "core/test_def.h"
 #include "core/test_dns.h"
 #include "core/test_mem.h"
@@ -84,9 +85,14 @@ int main(void)
     ip4_suite,
     ip6_suite,
     udp_suite,
+#if !LWIP_USE_RUST_TCP
     tcp_suite,
     tcp_oos_suite,
     tcp_state_suite,
+#endif
+#if LWIP_USE_RUST_TCP
+    tcp_rust_suite,
+#endif
     def_suite,
     dns_suite,
     mem_suite,
@@ -97,9 +103,11 @@ int main(void)
     dhcp_suite,
     mdns_suite,
     mqtt_suite,
-    sockets_suite
+#if !LWIP_USE_RUST_TCP
+    sockets_suite,
+#endif
 #if PPP_SUPPORT && PPPOS_SUPPORT
-    , pppos_suite
+    pppos_suite,
 #endif /* PPP_SUPPORT && PPPOS_SUPPORT */
   };
   size_t num = sizeof(suites)/sizeof(void*);

@@ -162,7 +162,7 @@ static void
 altcp_tcp_remove_callbacks(struct tcp_pcb *tpcb)
 {
   tcp_arg(tpcb, NULL);
-  if (tpcb->state != LISTEN) {
+  if (tcp_state_get(tpcb) != LISTEN) {
     tcp_recv(tpcb, NULL);
     tcp_sent(tpcb, NULL);
     tcp_err(tpcb, NULL);
@@ -175,7 +175,7 @@ altcp_tcp_setup_callbacks(struct altcp_pcb *conn, struct tcp_pcb *tpcb)
 {
   tcp_arg(tpcb, conn);
   /* this might be called for LISTN when close fails... */
-  if (tpcb->state != LISTEN) {
+  if (tcp_state_get(tpcb) != LISTEN) {
     tcp_recv(tpcb, altcp_tcp_recv);
     tcp_sent(tpcb, altcp_tcp_sent);
     tcp_err(tpcb, altcp_tcp_err);
@@ -470,9 +470,9 @@ altcp_tcp_keepalive_enable(struct altcp_pcb *conn, u32_t idle, u32_t intvl, u32_
     struct tcp_pcb *pcb = (struct tcp_pcb *)conn->state;
     ALTCP_TCP_ASSERT_CONN(conn);
     ip_set_option(pcb, SOF_KEEPALIVE);
-    pcb->keep_idle = idle ? idle : TCP_KEEPIDLE_DEFAULT;
-    pcb->keep_intvl = intvl ? intvl : TCP_KEEPINTVL_DEFAULT;
-    pcb->keep_cnt = cnt ? cnt : TCP_KEEPCNT_DEFAULT;
+    tcp_set_keep_idle(pcb, idle ? idle : TCP_KEEPIDLE_DEFAULT);
+    tcp_set_keep_intvl(pcb, intvl ? intvl : TCP_KEEPINTVL_DEFAULT);
+    tcp_set_keep_cnt(pcb, cnt ? cnt : TCP_KEEPCNT_DEFAULT);
   }
 }
 #endif
@@ -538,7 +538,7 @@ altcp_tcp_dbg_get_tcp_state(struct altcp_pcb *conn)
     struct tcp_pcb *pcb = (struct tcp_pcb *)conn->state;
     ALTCP_TCP_ASSERT_CONN(conn);
     if (pcb) {
-      return pcb->state;
+      return tcp_state_get(pcb);
     }
   }
   return CLOSED;

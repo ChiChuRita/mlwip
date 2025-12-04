@@ -2997,7 +2997,7 @@ lwip_getsockopt_impl(int s, int level, int optname, void *optval, socklen_t *opt
             done_socket(sock);
             return ENOPROTOOPT;
           }
-          if ((sock->conn->pcb.tcp != NULL) && (sock->conn->pcb.tcp->state == LISTEN)) {
+          if ((sock->conn->pcb.tcp != NULL) && (tcp_state_get(sock->conn->pcb.tcp) == LISTEN)) {
             *(int *)optval = 1;
           } else {
             *(int *)optval = 0;
@@ -3180,24 +3180,24 @@ lwip_getsockopt_impl(int s, int level, int optname, void *optval, socklen_t *opt
                                       s, (*(int *)optval) ? "on" : "off") );
           break;
         case TCP_KEEPALIVE:
-          *(int *)optval = (int)sock->conn->pcb.tcp->keep_idle;
+          *(int *)optval = (int)tcp_get_keep_idle(sock->conn->pcb.tcp);
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, IPPROTO_TCP, TCP_KEEPALIVE) = %d\n",
                                       s, *(int *)optval));
           break;
 
 #if LWIP_TCP_KEEPALIVE
         case TCP_KEEPIDLE:
-          *(int *)optval = (int)(sock->conn->pcb.tcp->keep_idle / 1000);
+          *(int *)optval = (int)(tcp_get_keep_idle(sock->conn->pcb.tcp) / 1000);
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, IPPROTO_TCP, TCP_KEEPIDLE) = %d\n",
                                       s, *(int *)optval));
           break;
         case TCP_KEEPINTVL:
-          *(int *)optval = (int)(sock->conn->pcb.tcp->keep_intvl / 1000);
+          *(int *)optval = (int)(tcp_get_keep_intvl(sock->conn->pcb.tcp) / 1000);
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, IPPROTO_TCP, TCP_KEEPINTVL) = %d\n",
                                       s, *(int *)optval));
           break;
         case TCP_KEEPCNT:
-          *(int *)optval = (int)sock->conn->pcb.tcp->keep_cnt;
+          *(int *)optval = (int)tcp_get_keep_cnt(sock->conn->pcb.tcp);
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_getsockopt(%d, IPPROTO_TCP, TCP_KEEPCNT) = %d\n",
                                       s, *(int *)optval));
           break;
@@ -3658,26 +3658,26 @@ lwip_setsockopt_impl(int s, int level, int optname, const void *optval, socklen_
                                       s, (*(const int *)optval) ? "on" : "off") );
           break;
         case TCP_KEEPALIVE:
-          sock->conn->pcb.tcp->keep_idle = (u32_t)(*(const int *)optval);
+          tcp_set_keep_idle(sock->conn->pcb.tcp, (u32_t)(*(const int *)optval));
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_setsockopt(%d, IPPROTO_TCP, TCP_KEEPALIVE) -> %"U32_F"\n",
-                                      s, sock->conn->pcb.tcp->keep_idle));
+                                      s, tcp_get_keep_idle(sock->conn->pcb.tcp)));
           break;
 
 #if LWIP_TCP_KEEPALIVE
         case TCP_KEEPIDLE:
-          sock->conn->pcb.tcp->keep_idle = 1000 * (u32_t)(*(const int *)optval);
+          tcp_set_keep_idle(sock->conn->pcb.tcp, 1000 * (u32_t)(*(const int *)optval));
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_setsockopt(%d, IPPROTO_TCP, TCP_KEEPIDLE) -> %"U32_F"\n",
-                                      s, sock->conn->pcb.tcp->keep_idle));
+                                      s, tcp_get_keep_idle(sock->conn->pcb.tcp)));
           break;
         case TCP_KEEPINTVL:
-          sock->conn->pcb.tcp->keep_intvl = 1000 * (u32_t)(*(const int *)optval);
+          tcp_set_keep_intvl(sock->conn->pcb.tcp, 1000 * (u32_t)(*(const int *)optval));
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_setsockopt(%d, IPPROTO_TCP, TCP_KEEPINTVL) -> %"U32_F"\n",
-                                      s, sock->conn->pcb.tcp->keep_intvl));
+                                      s, tcp_get_keep_intvl(sock->conn->pcb.tcp)));
           break;
         case TCP_KEEPCNT:
-          sock->conn->pcb.tcp->keep_cnt = (u32_t)(*(const int *)optval);
+          tcp_set_keep_cnt(sock->conn->pcb.tcp, (u32_t)(*(const int *)optval));
           LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_setsockopt(%d, IPPROTO_TCP, TCP_KEEPCNT) -> %"U32_F"\n",
-                                      s, sock->conn->pcb.tcp->keep_cnt));
+                                      s, tcp_get_keep_cnt(sock->conn->pcb.tcp)));
           break;
 #endif /* LWIP_TCP_KEEPALIVE */
         default:

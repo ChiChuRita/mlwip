@@ -216,7 +216,9 @@ typedef u16_t tcpflags_t;
   enum tcp_state state; /* TCP state */ \
   u8_t prio; \
   /* ports are in host byte order */ \
-  u16_t local_port
+  u16_t local_port; \
+  /* Rust handle for opaque delegation */ \
+  void *rust_handle
 
 
 /** the TCP protocol control block for listening pcbs */
@@ -420,9 +422,40 @@ void             tcp_accept  (struct tcp_pcb *pcb, tcp_accept_fn accept);
 #endif /* LWIP_CALLBACK_API */
 void             tcp_poll    (struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval);
 
-#define          tcp_set_flags(pcb, set_flags)     do { (pcb)->flags = (tcpflags_t)((pcb)->flags |  (set_flags)); } while(0)
-#define          tcp_clear_flags(pcb, clr_flags)   do { (pcb)->flags = (tcpflags_t)((pcb)->flags & (tcpflags_t)(~(clr_flags) & TCP_ALLFLAGS)); } while(0)
-#define          tcp_is_flag_set(pcb, flag)        (((pcb)->flags & (flag)) != 0)
+#define          tcp_set_flags(pcb, set_flags)     do { \
+  if (LWIP_USE_RUST_TCP) { \
+    tcp_set_flags_rust(pcb, set_flags); \
+  } else { \
+    (pcb)->flags = (tcpflags_t)((pcb)->flags | (set_flags)); \
+  } \
+} while(0)
+
+#define          tcp_clear_flags(pcb, clr_flags)   do { \
+  if (LWIP_USE_RUST_TCP) { \
+    tcp_clear_flags_rust(pcb, clr_flags); \
+  } else { \
+    (pcb)->flags = (tcpflags_t)((pcb)->flags & (tcpflags_t)(~(clr_flags) & TCP_ALLFLAGS)); \
+  } \
+} while(0)
+
+#define          tcp_is_flag_set(pcb, flag)        (LWIP_USE_RUST_TCP ? tcp_is_flag_set_rust(pcb, flag) : (((pcb)->flags & (flag)) != 0))
+
+/* Keep-Alive accessors */
+#if LWIP_USE_RUST_TCP
+#define          tcp_set_keep_idle(pcb, val)       tcp_set_keep_idle_rust(pcb, val)
+#define          tcp_set_keep_intvl(pcb, val)      tcp_set_keep_intvl_rust(pcb, val)
+#define          tcp_set_keep_cnt(pcb, val)        tcp_set_keep_cnt_rust(pcb, val)
+#define          tcp_get_keep_idle(pcb)            tcp_get_keep_idle_rust(pcb)
+#define          tcp_get_keep_intvl(pcb)           tcp_get_keep_intvl_rust(pcb)
+#define          tcp_get_keep_cnt(pcb)             tcp_get_keep_cnt_rust(pcb)
+#else
+#define          tcp_set_keep_idle(pcb, val)       (pcb)->keep_idle = (val)
+#define          tcp_set_keep_intvl(pcb, val)      (pcb)->keep_intvl = (val)
+#define          tcp_set_keep_cnt(pcb, val)        (pcb)->keep_cnt = (val)
+#define          tcp_get_keep_idle(pcb)            (pcb)->keep_idle
+#define          tcp_get_keep_intvl(pcb)           (pcb)->keep_intvl
+#define          tcp_get_keep_cnt(pcb)             (pcb)->keep_cnt
+#endif
 
 #if LWIP_TCP_TIMESTAMPS
 #define          tcp_mss(pcb)             (((pcb)->flags & TF_TIMESTAMP) ? ((pcb)->mss - 12)  : (pcb)->mss)
@@ -430,10 +463,37 @@ void             tcp_poll    (struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interv
 /** @ingroup tcp_raw */
 #define          tcp_mss(pcb)             ((pcb)->mss)
 #endif /* LWIP_TCP_TIMESTAMPS */
+
+#if LWIP_USE_RUST_TCP
+/* Accessors for Rust TCP backend */
+extern u8_t tcp_get_state_rust(const struct tcp_pcb *pcb);
+extern u16_t tcp_get_sndbuf_rust(const struct tcp_pcb *pcb);
+extern u16_t tcp_get_sndqueuelen_rust(const struct tcp_pcb *pcb);
+extern void tcp_set_flags_rust(struct tcp_pcb *pcb, tcpflags_t set_flags);
+extern void tcp_clear_flags_rust(struct tcp_pcb *pcb, tcpflags_t clr_flags);
+extern int tcp_is_flag_set_rust(const struct tcp_pcb *pcb, tcpflags_t flag);
+extern void tcp_set_keep_idle_rust(struct tcp_pcb *pcb, u32_t val);
+extern void tcp_set_keep_intvl_rust(struct tcp_pcb *pcb, u32_t val);
+extern void tcp_set_keep_cnt_rust(struct tcp_pcb *pcb, u32_t val);
+extern u32_t tcp_get_keep_idle_rust(const struct tcp_pcb *pcb);
+extern u32_t tcp_get_keep_intvl_rust(const struct tcp_pcb *pcb);
+extern u32_t tcp_get_keep_cnt_rust(const struct tcp_pcb *pcb);
+
+/** @ingroup tcp_raw */
+#define          tcp_sndbuf(pcb)          tcp_get_sndbuf_rust(pcb)
+/** @ingroup tcp_raw */
+#define          tcp_sndqueuelen(pcb)     tcp_get_sndqueuelen_rust(pcb)
+/** @ingroup tcp_raw */
+#define          tcp_state_get(pcb)       ((enum tcp_state)tcp_get_state_rust(pcb))
+#else
 /** @ingroup tcp_raw */
 #define          tcp_sndbuf(pcb)          (TCPWND16((pcb)->snd_buf))
 /** @ingroup tcp_raw */
 #define          tcp_sndqueuelen(pcb)     ((pcb)->snd_queuelen)
+/** @ingroup tcp_raw */
+#define          tcp_state_get(pcb)       ((pcb)->state)
+#endif
+
 /** @ingroup tcp_raw */
 #define          tcp_nagle_disable(pcb)   tcp_set_flags(pcb, TF_NODELAY)
 /** @ingroup tcp_raw */
@@ -443,7 +503,7 @@ void             tcp_poll    (struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interv
 
 #if TCP_LISTEN_BACKLOG
 #define          tcp_backlog_set(pcb, new_backlog) do { \
-  LWIP_ASSERT("pcb->state == LISTEN (called for wrong pcb?)", (pcb)->state == LISTEN); \
+  LWIP_ASSERT("pcb->state == LISTEN (called for wrong pcb?)", tcp_state_get(pcb) == LISTEN); \
   ((struct tcp_pcb_listen *)(pcb))->backlog = ((new_backlog) ? (new_backlog) : 1); } while(0)
 void             tcp_backlog_delayed(struct tcp_pcb* pcb);
 void             tcp_backlog_accepted(struct tcp_pcb* pcb);
@@ -479,7 +539,7 @@ err_t            tcp_output  (struct tcp_pcb *pcb);
 
 err_t            tcp_tcp_get_tcp_addrinfo(struct tcp_pcb *pcb, int local, ip_addr_t *addr, u16_t *port);
 
-#define tcp_dbg_get_tcp_state(pcb) ((pcb)->state)
+#define tcp_dbg_get_tcp_state(pcb) tcp_state_get(pcb)
 
 /* for compatibility with older implementation */
 #define tcp_new_ip6() tcp_new_ip_type(IPADDR_TYPE_V6)

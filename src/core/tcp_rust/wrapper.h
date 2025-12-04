@@ -8,4 +8,8 @@
 #include "lwip/ip4.h"
 #include "lwip/ip6.h"
 #include "lwip/mem.h"
+#include "lwip/memp.h"
 #include "lwip/inet_chksum.h"
+#include "lwip/tcp.h"
+#include "lwip/priv/tcp_priv.h"
+#include "lwip/timeouts.h"
