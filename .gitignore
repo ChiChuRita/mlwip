@@ -77,3 +77,6 @@ src/core/tcp_rust/IMPLEMENTATION_SUMMARY.md
 src/core/tcp_rust/QUICK_START_TESTING.md
 src/core/tcp_rust/TEST_SUCCESS_SUMMARY.md
 src/core/tcp_rust/TEST_TRANSLATION_SUMMARY.md
+.cargo/*
+test_build/*
+unittest_build/*
