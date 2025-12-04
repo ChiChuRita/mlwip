@@ -165,7 +165,11 @@ impl FlowControlState {
 
     /// CLOSED → SYN_SENT: Initialize our receive window for active open
     pub fn on_connect(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+        // Initialize our receive window
+        self.rcv_wnd = 4096;
+        self.rcv_ann_wnd = self.rcv_wnd;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------

@@ -133,9 +133,14 @@ impl CongestionControlState {
     /// CLOSED → SYN_SENT: Initialize cwnd for active open
     pub fn on_connect(
         &mut self,
-        _conn_mgmt: &ConnectionManagementState,
+        conn_mgmt: &ConnectionManagementState,
     ) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+        // Initialize congestion window to 1 MSS for active open
+        // (will be expanded after SYN+ACK received per RFC 5681)
+        let mss = conn_mgmt.mss as u16;
+        self.cwnd = mss;
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------

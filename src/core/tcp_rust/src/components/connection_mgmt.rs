@@ -252,24 +252,82 @@ impl ConnectionManagementState {
     /// CLOSED → CLOSED: Bind to local address/port
     pub fn on_bind(
         &mut self,
-        _local_ip: ffi::ip_addr_t,
-        _local_port: u16,
+        local_ip: ffi::ip_addr_t,
+        local_port: u16,
     ) -> Result<u16, &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_bind")
+        if self.state != TcpState::Closed {
+            return Err("Can only bind in CLOSED state");
+        }
+
+        if local_port == 0 {
+            return Err("Port 0 not yet supported - provide explicit port");
+        }
+
+        self.local_ip = local_ip;
+        self.local_port = local_port;
+        Ok(local_port)
     }
 
     /// CLOSED → LISTEN: Start listening for connections
     pub fn on_listen(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_listen")
+        if self.state != TcpState::Closed {
+            return Err("Can only listen from CLOSED state");
+        }
+
+        if self.local_port == 0 {
+            return Err("Must bind to port before listening");
+        }
+
+        self.state = TcpState::Listen;
+        Ok(())
     }
 
     /// CLOSED → SYN_SENT: Initiate active connection
     pub fn on_connect(
         &mut self,
-        _remote_ip: ffi::ip_addr_t,
-        _remote_port: u16,
+        remote_ip: ffi::ip_addr_t,
+        remote_port: u16,
     ) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+        if self.state != TcpState::Closed {
+            return Err("Can only connect from CLOSED state");
+        }
+
+        // Store remote endpoint
+        self.remote_ip = remote_ip;
+        self.remote_port = remote_port;
+
+        // Transition to SYN_SENT
+        self.state = TcpState::SynSent;
+
+        Ok(())
+    }
+
+    /// Initiate graceful close from various states
+    /// Returns: Ok(true) if FIN should be sent, Ok(false) if already closing/closed
+    pub fn on_close(&mut self) -> Result<bool, &'static str> {
+        match self.state {
+            TcpState::Closed => Ok(false),
+            TcpState::Listen => {
+                self.state = TcpState::Closed;
+                Ok(false)
+            }
+            TcpState::SynSent | TcpState::SynRcvd => {
+                self.state = TcpState::Closed;
+                Ok(false)
+            }
+            TcpState::Established => {
+                self.state = TcpState::FinWait1;
+                Ok(true)
+            }
+            TcpState::CloseWait => {
+                self.state = TcpState::LastAck;
+                Ok(true)
+            }
+            _ => {
+                // Already closing (FinWait1, FinWait2, Closing, LastAck, TimeWait)
+                Ok(false)
+            }
+        }
     }
 
     // ------------------------------------------------------------------------

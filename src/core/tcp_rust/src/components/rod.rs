@@ -262,7 +262,13 @@ impl ReliableOrderedDeliveryState {
 
     /// CLOSED → SYN_SENT: Generate ISS for active open
     pub fn on_connect(&mut self) -> Result<(), &'static str> {
-        unimplemented!("TODO: Migrate from control_path::tcp_connect")
+        // Generate our ISS
+        self.iss = Self::generate_iss();
+        self.snd_nxt = self.iss;
+        self.snd_lbb = self.iss.wrapping_sub(1);
+        self.lastack = self.iss.wrapping_sub(1);
+
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
