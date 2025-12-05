@@ -1,14 +1,81 @@
 # TCP Rust Modularization: Complete Technical Reference
 
-## Overview
+> "We decomposed TCP into five components with non-overlapping write scopes, enforced by Rust's type system at compile time."
 
-This document describes the complete refactoring of lwIP's TCP implementation from C to Rust, with a focus on modular component-based architecture.
+---
 
-### Goals
-1. **Modularize** the monolithic `tcp_pcb` structure into focused components
-2. **Enforce invariants** through Rust's type system
-3. **Maintain compatibility** with existing C code via FFI bridge
-4. **Preserve semantics** of the original lwIP implementation
+## What's the Problem?
+
+### Traditional TCP = Spaghetti State
+
+```
+┌─────────────────────────────────────┐
+│         Monolithic tcp_pcb          │
+│  ┌───┬───┬───┬───┬───┬───┬───┐    │
+│  │snd│rcv│cwnd│wnd│state│...│60+ │    │
+│  └───┴───┴───┴───┴───┴───┴───┘    │
+│         ↑   ↑   ↑   ↑   ↑          │
+│    ANY FUNCTION CAN WRITE ANYWHERE  │
+└─────────────────────────────────────┘
+```
+
+**Why is this bad?**
+
+| Problem | Real-World Impact |
+|---------|-------------------|
+| **Bugs spread** | A congestion control bug can corrupt connection state |
+| **Hard to test** | Need full TCP stack to test one component |
+| **Hard to verify** | Can't prove correctness of isolated logic |
+| **Slow innovation** | Changing ACK logic requires touching 10 files |
+| **Hard to offload** | No clear boundaries for hardware acceleration |
+
+---
+
+## What's Our Solution?
+
+### Five Disjoint Components
+
+```
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│ ConnMgmt│ │   ROD   │ │FlowCtrl │ │CongCtrl │ │  Demux  │
+├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤ ├─────────┤
+│ state   │ │ snd_nxt │ │ snd_wnd │ │ cwnd    │ │(no state│
+│ 4-tuple │ │ rcv_nxt │ │ rcv_wnd │ │ ssthresh│ │  uses   │
+│ timers  │ │ lastack │ │ scaling │ │         │ │ 4-tuple)│
+│ options │ │ iss/irs │ │ persist │ │         │ │         │
+└────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └─────────┘
+     │           │           │           │
+     ▼           ▼           ▼           ▼
+  ONLY writes  ONLY writes  ONLY writes  ONLY writes
+  to ConnMgmt  to ROD       to FlowCtrl  to CongCtrl
+```
+
+**The Rule:** Each component method can only write to its own state.
+
+---
+
+## Why Rust?
+
+### Compile-Time Enforcement
+
+```rust
+impl ConnectionManagementState {
+    pub fn on_syn(&mut self) {
+        self.state = SynRcvd;     // ✅ Allowed (my field)
+        self.snd_nxt = 100;       // ❌ COMPILE ERROR (ROD's field)
+    }
+}
+```
+
+**Key insight:** In C, you'd need discipline. In Rust, the compiler enforces it.
+
+### Quick Comparison
+
+| C (lwIP) | Rust (Ours) |
+|----------|-------------|
+| `pcb->state = SYN_RCVD; pcb->snd_nxt = x;` | Each component has its own `&mut self` |
+| Runtime bugs if wrong field touched | Compile-time error if wrong field touched |
+| Trust the programmer | Trust the type system |
 
 ---
 
