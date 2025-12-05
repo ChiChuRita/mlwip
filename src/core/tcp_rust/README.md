@@ -14,8 +14,6 @@ This project implements a modular TCP architecture where the traditional monolit
 | `state.rs` | `TcpState` enum (11 states) and `TcpConnectionState` aggregator |
 | `tcp_types.rs` | Shared types: `TcpSegment`, `TcpFlags`, validation enums |
 | `tcp_api.rs` | API functions: `tcp_bind`, `tcp_listen`, `tcp_connect`, `tcp_input` dispatcher |
-| `tcp_in.rs` | Input path: segment parsing, state-based dispatch |
-| `tcp_out.rs` | Output path: segment construction, header formatting |
 | `tcp_proto.rs` | TCP protocol constants and header structure |
 | **Components:** | |
 | `connection_mgmt.rs` | TCP state machine, connection lifecycle, 4-tuple |
@@ -40,7 +38,7 @@ This project implements a modular TCP architecture where the traditional monolit
 
 ✅ **Validation functions** (RST, ACK, sequence numbers per RFC 5961)
 
-✅ **50 comprehensive tests** covering state transitions and edge cases
+✅ **58 comprehensive tests** covering state transitions and edge cases
 
 ---
 
@@ -199,8 +197,6 @@ src/core/tcp_rust/
 │   ├── state.rs               # TcpState enum, TcpConnectionState aggregator
 │   ├── tcp_types.rs           # TcpSegment, TcpFlags, validation enums
 │   ├── tcp_api.rs             # API: bind, listen, connect, tcp_input dispatcher
-│   ├── tcp_in.rs              # Input path: parsing, dispatch
-│   ├── tcp_out.rs             # Output path: segment construction
 │   ├── tcp_proto.rs           # TCP constants, header structure
 │   │
 │   └── components/
@@ -227,12 +223,13 @@ cargo test
 
 Expected output:
 ```
-running 8 tests (unit_tests) ... ok
+running 3 tests (tcp_proto tests) ... ok
 running 42 tests (control_path_tests) ... ok
 running 5 tests (handshake_tests) ... ok
 running 3 tests (test_helpers) ... ok
+running 5 tests (lib.rs ffi_tests) ... ok
 
-test result: ok. 50 passed; 0 failed
+test result: ok. 58 passed; 0 failed
 ```
 
 ---
