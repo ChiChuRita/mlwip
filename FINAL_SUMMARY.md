@@ -771,3 +771,12 @@ pub enum InputAction { SendSynAck, SendAck, SendRst, Accept, Abort, Drop, ... }
 | **Data Path** | ❌ Stubs only |
 | **Timers** | ❌ Stubs only |
 | **Segment TX/RX** | ❌ Not implemented |
+
+# Additional Docs:
+### lwIP TCP Stack Architecture and Control Path**: [lwip_control_path.md](./lwip_control_path.md)
+[Notion](https://www.notion.so/paulburkhardt/lwip-TCP-Stack-Architecture-and-Control-Path-Documentation-2a2168e7cc6b8097b1d4ff089a1e1dcd?source=copy_link)
+
+
+
+### Demikernel TCP Stack Architecture and Control Path Documentation: [demikernel_control_path.md](./demikernel_control_path.md)
+[Notion](https://www.notion.so/paulburkhardt/Demikernel-TCP-Stack-Architecture-and-Control-Path-Documentation-2c2168e7cc6b80f9a04df0f1cc35b26d?source=copy_link)
