@@ -1,4 +1,4 @@
-# current architecture and control state state modifications
+# lwip TCP Stack Architecture and Control Path Documentation
 
 The control path implements a **state-based dispatcher pattern**:
 
